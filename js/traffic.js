@@ -74,7 +74,10 @@ function createBusDestinationTexture() {
 
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 
-function createTrafficSystem(scene, sidewalks, obstacles) {
+function createTrafficSystem(scene, sidewalks, obstacles, population = {}) {
+  const NUM_CARS = population.cars ?? 200;
+  const NUM_BUSES = population.buses ?? 12;
+  const NUM_PEDS = population.pedestrians ?? 340;
   const group = new THREE.Group();
   group.name = 'ManhattanTrafficAndPedestrians';
   let collisionListener = null;
@@ -318,7 +321,7 @@ function createTrafficSystem(scene, sidewalks, obstacles) {
   // =========================================================================
   // One instanced draw per level of detail; every pedestrian has a PersonRig that plants its footsteps on the
   // sidewalk (no sliding), with their own build, height, sex, hair, clothes and gait
-  const pedCrowd = new PersonCrowd(NUM_PEDS);
+  const pedCrowd = new PersonCrowd(Math.max(1, NUM_PEDS));
   const hash = (i, salt) => {
     const v = Math.sin(i * 12.9898 + salt * 78.233) * 43758.5453;
     return v - Math.floor(v);

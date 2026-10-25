@@ -8,7 +8,7 @@ export class OutbreakView {
     this.root.innerHTML = `
       <div class="ze-top"><a class="ze-brand" href="./">ZOMBIES<span>EVERYWHERE</span></a>
       <div class="ze-settings"><label><span data-text="language"></span> <select aria-label="Idioma / Language"><option value="es">Español</option><option value="en">English</option></select></label>
-      <button class="ze-sound" type="button"></button><button class="ze-pause" type="button" data-text="pause"></button></div></div>
+      <label><span data-text="quality"></span><select class="ze-quality" aria-label="Calidad / Quality"><option value="low" data-text="qualityLow"></option><option value="balanced" data-text="qualityBalanced"></option><option value="cinematic" data-text="qualityHigh"></option></select></label><button class="ze-sound" type="button"></button><button class="ze-pause" type="button" data-text="pause"></button></div></div>
       <div class="ze-hud"><div class="ze-objective"></div><div class="ze-distance"></div>
       <div class="ze-vitals"><label><span data-text="health"></span><progress class="ze-health" max="100" value="100"></progress></label>
       <label><span data-text="stamina"></span><progress class="ze-stamina" max="100" value="100"></progress></label></div></div>
@@ -35,16 +35,20 @@ export class OutbreakView {
     this.$('.ze-skip').addEventListener('click', onSkip);
     this.$('.ze-pause').addEventListener('click', onPause);
     this.$('.ze-sound').addEventListener('click', onSound);
+    this.$('.ze-quality').value = new URLSearchParams(location.search).get('quality') || 'balanced';
+    this.$('.ze-quality').addEventListener('change', (e) => { const url = new URL(location.href); url.searchParams.set('quality', e.target.value); location.assign(url.href); });
     this.translate();
   }
   t(key) { return MESSAGES[this.language][key] ?? key; }
   translate() {
     document.documentElement.lang = this.language;
+    this.$('.ze-quality').title = this.t('quality');
+    this.$('.ze-quality').setAttribute('aria-label', this.t('quality'));
     for (const node of this.root.querySelectorAll('[data-text]')) node.textContent = this.t(node.dataset.text);
     this.$('.ze-health').setAttribute('aria-label', this.t('health'));
     this.$('.ze-stamina').setAttribute('aria-label', this.t('stamina'));
   }
-  render(mission, { distance = 0, feed = '', boundary = false, sound = true } = {}) {
+  render(mission, { distance = 0, feed = '', boundary = false, sound = true, infections = 0 } = {}) {
     this.last = mission;
     const phase = mission.phase, terminal = phase === 'won' || phase === 'lost';
     const screen = phase === 'menu' || terminal || mission.paused;
@@ -64,7 +68,7 @@ export class OutbreakView {
     this.$('.ze-cities').hidden = phase !== 'menu';
     this.$('.ze-hint').hidden = terminal;
     this.$('.ze-objective').textContent = this.t(phase === 'escape' ? 'objectiveEscape' : 'objectiveErrand');
-    this.$('.ze-distance').textContent = `${Math.ceil(distance)} m · ${this.t(phase === 'escape' ? 'shelter' : 'hospital')}`;
+    this.$('.ze-distance').textContent = `${Math.ceil(distance)} m · ${this.t(phase === 'escape' ? 'shelter' : 'hospital')} · ${this.t('infections')}: ${infections}`;
     this.$('.ze-health').value = mission.health;
     this.$('.ze-stamina').value = mission.stamina;
     const text = this.t(boundary ? 'boundary' : feed);
@@ -89,7 +93,7 @@ export class OutbreakView {
     }
     ctx.drawImage(this.mapBase, 0, 0);
     const dot = (p, color, radius) => { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x(p.x), z(p.z), radius, 0, Math.PI * 2); ctx.fill(); };
-    for (const a of actors) dot(a, a.civilian ? '#58c9ff' : '#ff554e', 2.5);
+    for (const a of actors) if (!a.sheltered) dot(a, ['bitten','turning'].includes(a.state) ? '#e5b45a' : a.civilian ? '#58c9ff' : '#ff554e', 2.5);
     dot(target, '#e5b45a', 5); dot(player.position, '#fff', 4);
     ctx.strokeStyle = '#fff'; ctx.beginPath(); ctx.moveTo(x(player.position.x), z(player.position.z));
     ctx.lineTo(x(player.position.x) + Math.sin(player.heading) * 10, z(player.position.z) + Math.cos(player.heading) * 10); ctx.stroke();

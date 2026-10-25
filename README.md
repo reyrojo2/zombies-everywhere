@@ -21,7 +21,7 @@ Abre **http://localhost:8000** en un navegador de escritorio con aceleración gr
 1. Selecciona Español o English y pulsa **Comenzar historia**.
 2. Lee las tres emisiones de noticias (42 segundos), o pulsa **Salir a la calle**.
 3. Sigue el marcador ámbar hacia el centro médico y escucha la llamada.
-4. Cuando empieza el brote, sigue el marcador verde hasta el refugio. Los círculos rojos identifican infectados; los puntos azules del minimapa son civiles.
+4. Cuando empieza el brote, sigue el marcador verde hasta el refugio. Los personajes de piel gris verdosa y ropa oscura son zombis; en el minimapa aparecen en rojo, los civiles en azul y las personas contagiadas en ámbar.
 5. Si pierdes toda la salud, puedes reiniciar. Llegar al refugio termina esta primera misión.
 
 | Control | Acción |
@@ -39,16 +39,31 @@ La partida también se pausa al cambiar de pestaña o perder el foco. El idioma 
 
 - Manhattan, sector delimitado; noticias y llamada mediante texto, sin doblaje.
 - Centro médico y refugio señalizados en el exterior; no hay interiores de hospital o apartamento.
-- Doce infectados con búsqueda de caminos por obstáculos estáticos y seis civiles de la escena que huyen.
+- Doce zombis lentos (0,85–1,01 m/s) y 40 peatones de misión. Los peatones cercanos detectan amenazas visibles, huyen e intentan alcanzar el refugio. Los zombis pueden atacar al jugador o a un civil visible más cercano.
+- Un ataque a corta distancia contagia al peatón: 6 segundos herido, 2 segundos de transformación y después se convierte en un zombi. El proceso está identificado por el color ámbar en el minimapa y un contador de contagios. Las paredes bloquean el contacto; los refugiados están a salvo. El total de actores nunca aumenta por el contagio.
+- Apariencia de zombi propia con piel gris verdosa, ropa oscura, heridas, inclinación corporal, brazos adelantados y paso lento. Modelos procedurales sencillos dibujados mediante instancias compartidas.
+- Efectos sintetizados: entrada de noticias, teléfono, desconexión, alarma del hospital y gruñidos espaciales de zombis cercanos. Sin archivos de audio externos ni doblaje. Los efectos comparten mute y volumen con el audio urbano; se detienen al pausar o reiniciar.
 - Salud, resistencia, navegación, pausa, victoria, derrota y reinicio.
 - Interfaz y narrativa en español e inglés. Los nombres propios permanecen.
 - **Sin armas todavía**: este episodio prueba la huida. El arma, el regreso a casa y la búsqueda completa de Elena son la siguiente entrega.
 - **Lima está anunciada, pero no es seleccionable todavía.** Tendrá un escenario y una disponibilidad de armas propios.
 - Objetivo de soporte inicial: PC, teclado y ratón; no se ha implementado el modo de supervivencia para móvil o mando.
 
-El tráfico y los peatones ambientales proceden del simulador original. La reacción de huida pertenece a seis civiles de la misión, no a toda la población. La navegación de infectados usa obstáculos estáticos y no simula interiores, escaleras ni evasión de vehículos en movimiento.
+En la misión se sustituye la multitud ambiental original por los 40 civiles del brote, todos susceptibles al contagio. El tráfico se reduce de 200 autos y 12 buses a 24 autos y 2 buses; se desactiva el tráfico de autopistas. El explorador conserva su población original. La navegación de infectados usa obstáculos estáticos y no simula interiores, escaleras ni evasión de vehículos en movimiento.
 
 El explorador original sigue disponible con **http://localhost:8000/?mode=explore**. Conserva sus menús originales en inglés, vehículos y teletransportes. Estos accesos están deshabilitados en la misión.
+
+### Rendimiento y calidad
+
+El selector de calidad recarga la página y reinicia la partida; el idioma se conserva.
+
+| Perfil | Resolución interna | Sombras y posprocesado |
+| --- | --- | --- |
+| Rendimiento | 60% por eje | Sin sombras, reflejos SSR ni bloom |
+| Equilibrado (predeterminado) | 80% por eje | Sin sombras, reflejos SSR ni bloom |
+| Cinemático | 100% por eje | Sombras, SSR y bloom del simulador original |
+
+Se limita la distancia de cámara a 850 metros en los perfiles ligeros y a 1800 metros en el cinemático. Los cambios reducen la carga de render y simulación, pero todavía se construye la geometría de Manhattan al arrancar: la generación por sectores sigue pendiente. No se garantiza una tasa de FPS sin medir el equipo objetivo. La población de misión tiene un máximo de 52 actores; la conversión reutiliza al civil, sin generar nuevas entidades.
 
 ### Estructura
 
@@ -56,7 +71,10 @@ El explorador original sigue disponible con **http://localhost:8000/?mode=explor
 | --- | --- |
 | `js/outbreak/mission.js` | Reglas de progreso, salud, resistencia y configuración del capítulo |
 | `js/outbreak/navigation.js` | Rejilla local de obstáculos y campo de rutas compartido |
-| `js/outbreak/actors.js` | Infectados y civiles de la secuencia |
+| `js/outbreak/actors.js` | Movimiento y presentación de la población |
+| `js/outbreak/population.js` | Detección, objetivos, ataques e incubación del contagio |
+| `js/outbreak/zombie-model.js` | Modelos procedurales de zombis con instancias compartidas |
+| `js/outbreak/sound.js` | Efectos de teléfono, noticias, alarma y gruñidos |
 | `js/outbreak/locales.js` | Textos españoles e ingleses |
 | `js/outbreak/view.js` | Menú, noticias, llamada, indicadores y minimapa |
 | `js/outbreak/game.js` | Conexión entre la misión y el simulador |
@@ -71,7 +89,7 @@ Con Node.js 24:
 node --test tests/*.test.*
 ```
 
-La suite incluye progresión y final de misión, pausa, daño con tiempo de protección, agotamiento y recuperación, rutas alrededor de paredes y equivalencia de claves entre idiomas, además de las pruebas heredadas. El workflow de GitHub ejecuta la suite en pushes y pull requests.
+La suite incluye progresión y final de misión, pausa, daño con tiempo de protección, agotamiento y recuperación, rutas alrededor de paredes y equivalencia de claves entre idiomas, contagio por contacto, incubación, transformación, propagación, refugio y bloqueo por paredes, además de las pruebas heredadas. El workflow de GitHub ejecuta la suite en pushes y pull requests.
 
 El rendimiento gráfico depende del dispositivo. Las pruebas de lógica no sustituyen una prueba de juego en una GPU real. Las importaciones de Three.js heredadas apuntan a su rama `dev`; fijar una revisión y medir el rendimiento en equipos objetivo queda pendiente antes de publicar una versión estable.
 

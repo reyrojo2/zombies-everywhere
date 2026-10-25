@@ -3,10 +3,12 @@ import { Mission, MANHATTAN, distance } from './mission.js';
 import { NavigationGrid } from './navigation.js';
 import { OutbreakActors } from './actors.js';
 import { OutbreakView } from './view.js';
+import { OutbreakSound } from './sound.js';
 
 export class OutbreakGame {
   constructor({ scene, controller, camera, colliders, audio }) {
     this.controller = controller; this.camera = camera; this.audio = audio;
+    this.sound = new OutbreakSound(audio);
     this.nav = new NavigationGrid(MANHATTAN.bounds, colliders);
     // Resolve authored waypoints against actual buildings, rather than assuming empty sidewalks.
     this.config = { ...MANHATTAN };
@@ -64,14 +66,14 @@ export class OutbreakGame {
     this.render();
   }
   start() {
-    this.actors.reset(); this.mission.start(); this.controller.setMode('person');
+    this.actors.prepare(); this.sound.reset(); this.mission.start(); this.controller.setMode('person');
     this.controller.teleportActiveTo(this.config.spawn.x, this.config.spawn.z, this.config.spawn.heading);
     this.camera.resetForTeleport(); this.lastSafe = { ...this.controller.entities.person.position };
     this.controller.poseCharacters(0.016); this.render();
   }
   pause(force = false) {
     if (['menu', 'won', 'lost'].includes(this.mission.phase)) return;
-    this.mission.paused = force || !this.mission.paused; this.controller.resetInput(); this.render();
+    this.mission.paused = force || !this.mission.paused; this.sound.stop(); this.controller.resetInput(); this.render();
   }
   beforeUpdate(dt) {
     if (!this.mission.playing) { this.controller.resetInput(); return false; }
@@ -92,7 +94,8 @@ export class OutbreakGame {
     const previous = m.phase;
     m.tick(dt, player.position, this.controller.keys.boost && Math.abs(player.speed) > 1);
     if (previous !== 'escape' && m.phase === 'escape') this.actors.spawn();
-    if (m.phase === 'escape' && !m.paused) this.actors.update(dt, player, m, this.civilianNav);
+    if (m.playing) this.actors.update(dt, player, m, this.civilianNav);
+    this.sound.update(dt, m, this.actors.actors, player.position);
     if (previous !== m.phase) { this.controller.resetInput(); this.render(); }
     this.hospital.visible = ['menu', 'intro', 'errand'].includes(m.phase);
     this.shelter.visible = ['escape', 'won'].includes(m.phase);
@@ -108,7 +111,7 @@ export class OutbreakGame {
     let feed = m.time < 12 ? 'call0' : m.time < 24 ? 'call1' : 'ready';
     if (m.phase === 'errand' && distance(this.controller.entities.person.position, this.config.hospital) < 20 && m.time < 24) feed = 'waiting';
     if (m.phase === 'escape') feed = m.time < 9 ? 'call2' : m.time < 23 ? 'cut' : 'emergency';
-    this.view.render(m, { distance: distance(this.controller.entities.person.position, target), feed, boundary: this.boundary, sound: this.audio.enabled });
+    this.view.render(m, { infections: this.actors.population.infections, distance: distance(this.controller.entities.person.position, target), feed, boundary: this.boundary, sound: this.audio.enabled });
     this.view.drawMap(this.nav, this.controller.entities.person, this.actors.actors, target);
   }
 }

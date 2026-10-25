@@ -13,8 +13,11 @@ export const MANHATTAN = {
   maxStamina: 100,
   attackDamage: 14,
   attackCooldown: 1.2,
-  zombieSpeed: 3.9,
-  zombieCount: 12
+  zombieSpeed: 0.85,
+  zombieCount: 12,
+  civilianCount: 40,
+  incubationSeconds: 6,
+  turningSeconds: 2
 };
 
 export class Mission {

@@ -64,3 +64,67 @@ test('all narrative/UI keys exist in both languages and unavailable storage defa
   assert.equal(getLanguage({ getItem: () => 'en' }), 'en');
   assert.equal(getLanguage({ getItem: () => 'other' }), 'es');
 });
+
+import { Population } from '../js/outbreak/population.js';
+
+test('contact infects a civilian, incubates, then converts the same actor to a slow zombie', () => {
+  const p = new Population(MANHATTAN), person = p.add({ x: 0, z: 0 });
+  p.add({ x: 1, z: 0 }, true); p.activate();
+  const player = { x: 50, z: 0 };
+  p.update(.25, player, () => true, () => assert.fail('player is distant'));
+  assert.equal(person.state, 'bitten'); assert.equal(p.infections, 1);
+  assert.equal(p.infect(person), false);
+  p.update(6, player, () => true, () => {}); assert.equal(person.state, 'turning');
+  p.update(2, player, () => true, () => {}); assert.equal(person.state, 'zombie');
+  assert.equal(person.civilian, false); assert.equal(p.actors.length, 2);
+  assert.ok(MANHATTAN.zombieSpeed + .16 < 1.3);
+});
+
+test('conversion can propagate to another civilian, but walls block detection and contagion', () => {
+  const p = new Population(MANHATTAN), first = p.add({ x: 0, z: 0 });
+  p.add({ x: 1, z: 0 }, true); p.activate();
+  const player = { x: 50, z: 0 };
+  p.update(.25, player, () => false, () => {}); assert.equal(first.state, 'normal');
+  p.update(.25, player, () => true, () => {}); p.update(6, player, () => true, () => {}); p.update(2, player, () => true, () => {});
+  const next = p.add({ x: -.5, z: 0 });
+  p.update(.25, player, () => true, () => {}); assert.equal(next.state, 'bitten');
+  assert.equal(p.infections, 2); assert.equal(p.actors.length, 3);
+});
+
+test('nearby civilians flee; sheltered people are safe; inactive population cannot infect', () => {
+  const p = new Population(MANHATTAN), person = p.add({ x: 0, z: 0 });
+  p.add({ x: 5, z: 0 }, true);
+  p.update(1, { x: 50, z: 0 }, () => true, () => {}); assert.equal(person.state, 'normal');
+  p.activate();p.update(.25, { x: 50, z: 0 }, () => true, () => {});assert.equal(person.state, 'fleeing');
+  Object.assign(person, MANHATTAN.shelter);p.update(.25, { x: 50, z: 0 }, () => true, () => {});
+  assert.equal(person.sheltered, true);assert.equal(p.infect(person), false);
+  p.reset();assert.equal(p.infections, 0);assert.equal(p.actors.length, 0);
+});
+
+import { OutbreakSound } from '../js/outbreak/sound.js';
+test('phone and disconnect cues fire on state transitions, with silence during pause/mute', () => {
+  const audio = { enabled: true }, sound = new OutbreakSound(audio), cues = [];
+  sound.tone = (...args) => cues.push(args);
+  const mission = { phase:'errand', time:0, paused:false, config:MANHATTAN };
+  sound.update(.1,mission,[],{x:0,z:0}); sound.update(.1,mission,[],{x:0,z:0});
+  assert.equal(cues.length,2); // two frequencies, once
+  mission.phase='escape';mission.time=10;sound.update(.1,mission,[],{x:0,z:0});
+  assert.equal(cues.length,3);
+  mission.paused=true;mission.time=0;sound.update(.1,mission,[],{x:0,z:0});assert.equal(cues.length,3);
+  mission.paused=false;audio.enabled=false;sound.update(.1,mission,[],{x:0,z:0});assert.equal(cues.length,3);
+  sound.reset();assert.equal(sound.lastCue,null);
+});
+
+test('procedural audio limits voices and releases nodes when stopped', () => {
+  const param = () => ({value:0,setValueAtTime(){},exponentialRampToValueAtTime(){}});
+  const node = () => ({connect(){return this;},disconnect(){}});
+  const context = { state:'running',currentTime:0,
+    createOscillator(){return {...node(),frequency:param(),start(){},stop(){this.onended?.();}};},
+    createGain(){return {...node(),gain:param()};},createBiquadFilter(){return {...node(),frequency:param()};}
+  };
+  const sound = new OutbreakSound({enabled:true,context,mix:node()});
+  // Scheduled stop normally fires asynchronously; hold it until an explicit reset.
+  context.createOscillator=()=>({...node(),frequency:param(),start(){},stop(){}});
+  for(let i=0;i<20;i++)sound.tone(440,.5);
+  assert.equal(sound.voices.size,6);sound.stop();assert.equal(sound.voices.size,0);
+});
