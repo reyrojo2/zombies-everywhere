@@ -1,6 +1,7 @@
 import { PersonCrowd, PersonRig } from '../pedestrians.js';
 import { distance } from './mission.js';
 import { Population } from './population.js';
+import { streetZ } from '../city-config.js';
 import { ZombieModels } from './zombie-model.js';
 
 export class OutbreakActors {
@@ -9,13 +10,13 @@ export class OutbreakActors {
     this.population=new Population(config);
     this.crowd=new PersonCrowd(config.civilianCount, { castShadow:false });
     this.crowd.meshes.forEach(m=>scene.add(m));
-    this.models=new ZombieModels(scene,config.zombieCount+config.civilianCount);
+    this.models=new ZombieModels(scene,config.zombieCount+config.civilianCount+config.reinforcementCount);
     this.ground=(_owner,x,z)=>controller.getGroundHeight(x,z,'person');
     this.reset();
   }
   get actors() { return this.population.actors; }
   reset() {
-    this.population.reset(); this.timer=0; this.time=0;
+    this.population.reset(); this.timer=0; this.time=0; this.wave=0;
     this.crowd.begin(); this.crowd.end(); this.models.reset();
   }
   prepare() {
@@ -40,10 +41,19 @@ export class OutbreakActors {
       if(p) this.population.add(p,true);
     }
     this.population.activate();
+    for(const a of this.actors) if(a.civilian) a.state='fleeing';
   }
   update(dt,player,mission,civilianNav) {
     this.time+=dt; this.timer-=dt;
     const pos=player.position;
+    if(this.population.active && this.wave<4 && mission.time >= 7+this.wave*9) {
+      const wave=this.wave++;
+      const source={x:wave%2 ? 45 : -45,z:streetZ(44+wave)};
+      for(let i=0;i<4;i++) {
+        const p=this.nav.nearest({x:source.x+i*3,z:source.z});
+        if(p && distance(p,pos)>22 && civilianNav.cost[civilianNav.index(p)]>=0) this.population.add(p,true);
+      }
+    }
     if(this.population.active && this.timer<=0) { this.nav.flood(pos);this.timer=1; }
     this.population.update(dt,pos,(a,b)=>this.nav.clear(a,b),()=>{
       const y=this.ground(null,pos.x,pos.z); if(Math.abs(pos.y-y)<1.9) mission.hurt();
@@ -54,7 +64,7 @@ export class OutbreakActors {
       let target=null,speed=0,nav=this.nav;
       if(a.state==='zombie') { target=a.target;speed=this.config.zombieSpeed+(a.id%3)*.08; }
       else if(a.state==='fleeing') {
-        target=this.config.shelter;speed=4.8;nav=civilianNav;
+        target=this.config.shelter;speed=5.6;nav=civilianNav;
         if(a.threat && distance(a,a.threat)<6) {
           const d=Math.max(.01,distance(a,a.threat));
           const retreat={x:a.x+(a.x-a.threat.x)/d*5,z:a.z+(a.z-a.threat.z)/d*5};

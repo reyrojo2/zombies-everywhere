@@ -253,7 +253,7 @@ function carve(r, holes, axis = 'x') {
   return out.map(([u0, u1, v0, v1]) => (flip ? rect(v0, v1, u0, u1) : rect(u0, u1, v0, v1)));
 }
 
-function buildCityBlocks(scene) {
+function buildCityBlocks(scene, { bounds = null } = {}) {
   const group = new THREE.Group();
   group.name = 'ManhattanCityBlocks';
   const colliders = [];
@@ -1806,6 +1806,7 @@ function buildCityBlocks(scene) {
    * fascia signs, and scaffolding sheds) into the Quadtree.
    */
   function populateBlock(minX, maxX, minZ, maxZ, colIndex, rowIndex, isOuter = false, lowRiseEsplanade = false, district = 'midtown') {
+    if (bounds) { const [x,z]=toWorld((minX+maxX)/2,(minZ+maxZ)/2); if(x<bounds.minX || x>bounds.maxX || z<bounds.minZ || z>bounds.maxZ) return; }
     const bw = maxX - minX;
     const bd = maxZ - minZ;
     if (bw < (district === 'riverfront' ? 9 : minLot) || bd < minLot) return;
@@ -1989,6 +1990,7 @@ function buildCityBlocks(scene) {
     return out;
   }
   for (const b of BLOCKS) {
+    if (bounds && (b.maxX < bounds.minX || b.minX > bounds.maxX || b.maxZ < bounds.minZ || b.minZ > bounds.maxZ)) continue;
     if (b.park > 0.6 || b.median) continue;
     minLot = b.frames ? 12 : 15;
     for (const [th, px, pz, rects] of b.frames || [[0, 0, 0, b.rects]]) {

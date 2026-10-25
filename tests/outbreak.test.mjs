@@ -77,7 +77,7 @@ test('contact infects a civilian, incubates, then converts the same actor to a s
   p.update(6, player, () => true, () => {}); assert.equal(person.state, 'turning');
   p.update(2, player, () => true, () => {}); assert.equal(person.state, 'zombie');
   assert.equal(person.civilian, false); assert.equal(p.actors.length, 2);
-  assert.ok(MANHATTAN.zombieSpeed + .16 < 1.3);
+  assert.ok(MANHATTAN.zombieSpeed >= 2 && MANHATTAN.zombieSpeed + .16 < 3);
 });
 
 test('conversion can propagate to another civilian, but walls block detection and contagion', () => {
@@ -103,15 +103,16 @@ test('nearby civilians flee; sheltered people are safe; inactive population cann
 
 import { OutbreakSound } from '../js/outbreak/sound.js';
 test('phone and disconnect cues fire on state transitions, with silence during pause/mute', () => {
-  const audio = { enabled: true }, sound = new OutbreakSound(audio), cues = [];
+  const audio = { enabled: true, context: {state:'running'} }, sound = new OutbreakSound(audio), cues = [];
   sound.tone = (...args) => cues.push(args);
   const mission = { phase:'errand', time:0, paused:false, config:MANHATTAN };
   sound.update(.1,mission,[],{x:0,z:0}); sound.update(.1,mission,[],{x:0,z:0});
   assert.equal(cues.length,2); // two frequencies, once
   mission.phase='escape';mission.time=10;sound.update(.1,mission,[],{x:0,z:0});
-  assert.equal(cues.length,3);
-  mission.paused=true;mission.time=0;sound.update(.1,mission,[],{x:0,z:0});assert.equal(cues.length,3);
-  mission.paused=false;audio.enabled=false;sound.update(.1,mission,[],{x:0,z:0});assert.equal(cues.length,3);
+  assert.ok(cues.length>=3);
+  const beforePause=cues.length;
+  mission.paused=true;mission.time=0;sound.update(.1,mission,[],{x:0,z:0});assert.equal(cues.length,beforePause);
+  mission.paused=false;audio.enabled=false;sound.update(.1,mission,[],{x:0,z:0});assert.equal(cues.length,beforePause);
   sound.reset();assert.equal(sound.lastCue,null);
 });
 

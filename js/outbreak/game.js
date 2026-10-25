@@ -4,9 +4,10 @@ import { NavigationGrid } from './navigation.js';
 import { OutbreakActors } from './actors.js';
 import { OutbreakView } from './view.js';
 import { OutbreakSound } from './sound.js';
+import { OutbreakIncidents } from './incidents.js';
 
 export class OutbreakGame {
-  constructor({ scene, controller, camera, colliders, audio }) {
+  constructor({ scene, controller, camera, colliders, audio, onQuality = () => {} }) {
     this.controller = controller; this.camera = camera; this.audio = audio;
     this.sound = new OutbreakSound(audio);
     this.nav = new NavigationGrid(MANHATTAN.bounds, colliders);
@@ -23,11 +24,12 @@ export class OutbreakGame {
       if (this.civilianNav.cost[this.civilianNav.index(this.config[key])] < 0) throw new Error(`Disconnected mission waypoint: ${key}`);
     }
     this.mission = new Mission(this.config);
+    this.incidents = new OutbreakIncidents(scene,this.config);
     this.actors = new OutbreakActors(scene, this.nav, controller, this.config);
     this.markers = new THREE.Group(); scene.add(this.markers);
     this.hospital = this.createMarker(this.config.hospital, 0xe5b45a);
     this.shelter = this.createMarker(this.config.shelter, 0x73e0ad);
-    this.view = new OutbreakView({ onStart: () => this.start(), onSkip: () => this.mission.skipIntro(),
+    this.view = new OutbreakView({ onQuality, onStart: () => this.start(), onSkip: () => this.mission.skipIntro(),
       onPause: () => this.pause(), onLanguage: () => this.updateSigns(), onSound: () => audio.setEnabled(!audio.enabled) });
     this.updateSigns();
     controller.setMode('person'); controller.teleportActiveTo(this.config.spawn.x, this.config.spawn.z, this.config.spawn.heading);
@@ -66,7 +68,7 @@ export class OutbreakGame {
     this.render();
   }
   start() {
-    this.actors.prepare(); this.sound.reset(); this.mission.start(); this.controller.setMode('person');
+    this.actors.prepare(); this.incidents.reset(); this.sound.reset(); this.mission.start(); this.controller.setMode('person');
     this.controller.teleportActiveTo(this.config.spawn.x, this.config.spawn.z, this.config.spawn.heading);
     this.camera.resetForTeleport(); this.lastSafe = { ...this.controller.entities.person.position };
     this.controller.poseCharacters(0.016); this.render();
@@ -95,7 +97,8 @@ export class OutbreakGame {
     m.tick(dt, player.position, this.controller.keys.boost && Math.abs(player.speed) > 1);
     if (previous !== 'escape' && m.phase === 'escape') this.actors.spawn();
     if (m.playing) this.actors.update(dt, player, m, this.civilianNav);
-    this.sound.update(dt, m, this.actors.actors, player.position);
+    this.incidents.update(dt,m,player.position);
+    this.sound.update(dt, m, this.actors.actors, player.position, this.incidents);
     if (previous !== m.phase) { this.controller.resetInput(); this.render(); }
     this.hospital.visible = ['menu', 'intro', 'errand'].includes(m.phase);
     this.shelter.visible = ['escape', 'won'].includes(m.phase);

@@ -39,10 +39,11 @@ La partida también se pausa al cambiar de pestaña o perder el foco. El idioma 
 
 - Manhattan, sector delimitado; noticias y llamada mediante texto, sin doblaje.
 - Centro médico y refugio señalizados en el exterior; no hay interiores de hospital o apartamento.
-- Doce zombis lentos (0,85–1,01 m/s) y 40 peatones de misión. Los peatones cercanos detectan amenazas visibles, huyen e intentan alcanzar el refugio. Los zombis pueden atacar al jugador o a un civil visible más cercano.
-- Un ataque a corta distancia contagia al peatón: 6 segundos herido, 2 segundos de transformación y después se convierte en un zombi. El proceso está identificado por el color ámbar en el minimapa y un contador de contagios. Las paredes bloquean el contacto; los refugiados están a salvo. El total de actores nunca aumenta por el contagio.
+- Doce zombis iniciales con marcha rápida (2,15–2,31 m/s), sin carrera y 40 peatones de misión. Los peatones cercanos detectan amenazas visibles, huyen e intentan alcanzar el refugio. Los zombis pueden atacar al jugador o a un civil visible más cercano.
+- Un ataque a corta distancia contagia al peatón: 6 segundos herido, 2 segundos de transformación y después se convierte en un zombi. El proceso está identificado por el color ámbar en el minimapa y un contador de contagios. Las paredes bloquean el contacto; los refugiados están a salvo. El total de actores nunca aumenta por el contagio. Hay hasta cuatro entradas adicionales de cuatro zombis por las calles 44 a 47, con separación mínima de 22 metros respecto al jugador y un máximo de 68 actores contando los refuerzos.
 - Apariencia de zombi propia con piel gris verdosa, ropa oscura, heridas, inclinación corporal, brazos adelantados y paso lento. Modelos procedurales sencillos dibujados mediante instancias compartidas.
-- Efectos sintetizados: entrada de noticias, teléfono, desconexión, alarma del hospital y gruñidos espaciales de zombis cercanos. Sin archivos de audio externos ni doblaje. Los efectos comparten mute y volumen con el audio urbano; se detienen al pausar o reiniciar.
+- El brote activa la huida de todos los civiles de misión, un choque dirigido entre dos autos, la llegada de una patrulla con dos agentes, tres focos de incendio y humo y una transición al anochecer. Estos incidentes usan el reloj de misión y se congelan durante la pausa; no son una simulación física completa de accidentes o propagación de fuego. Acercarse a los focos de incendio causa daño.
+- Efectos sintetizados: entrada de noticias, teléfono, desconexión, alarma del hospital, sirenas repetidas, impacto y gruñidos espaciales de zombis cercanos con ruido y frecuencias medias audibles en altavoces pequeños. Sin archivos de audio externos ni doblaje. Los efectos comparten mute y volumen con el audio urbano; se detienen al pausar o reiniciar.
 - Salud, resistencia, navegación, pausa, victoria, derrota y reinicio.
 - Interfaz y narrativa en español e inglés. Los nombres propios permanecen.
 - **Sin armas todavía**: este episodio prueba la huida. El arma, el regreso a casa y la búsqueda completa de Elena son la siguiente entrega.
@@ -55,15 +56,17 @@ El explorador original sigue disponible con **http://localhost:8000/?mode=explor
 
 ### Rendimiento y calidad
 
-El selector de calidad recarga la página y reinicia la partida; el idioma se conserva.
+El selector aplica la calidad en el momento: mantiene la misión, la salud, el contagio y el audio. No navega ni reconstruye la ciudad. Activar sombras puede producir una compilación inicial de shaders. El idioma se conserva.
 
 | Perfil | Resolución interna | Sombras y posprocesado |
 | --- | --- | --- |
 | Rendimiento | 60% por eje | Sin sombras, reflejos SSR ni bloom |
 | Equilibrado (predeterminado) | 80% por eje | Sin sombras, reflejos SSR ni bloom |
-| Cinemático | 100% por eje | Sombras, SSR y bloom del simulador original |
+| Cinemático | 100% por eje | Sombras; la misión mantiene desactivados SSR y bloom |
 
-Se limita la distancia de cámara a 850 metros en los perfiles ligeros y a 1800 metros en el cinemático. Los cambios reducen la carga de render y simulación, pero todavía se construye la geometría de Manhattan al arrancar: la generación por sectores sigue pendiente. No se garantiza una tasa de FPS sin medir el equipo objetivo. La población de misión tiene un máximo de 52 actores; la conversión reutiliza al civil, sin generar nuevas entidades.
+La misión construye suelo, aceras y edificios únicamente para los bloques reales que intersectan el sector y un margen visual de 100 metros. No genera los distritos lejanos, los monumentos del mapa completo, sus autopistas o sus detalles de calle. El explorador original conserva la ciudad completa y sus efectos. Los datos geográficos compartidos y el grafo de tráfico original siguen cargándose; esta entrega no incorpora streaming de nuevos sectores.
+
+La cámara alcanza 700 metros en los perfiles ligeros y 1000 metros en el cinemático. La población tiene un máximo de 68 actores; el contagio reutiliza al civil. No se garantiza una tasa de FPS sin medir el equipo objetivo.
 
 ### Estructura
 
@@ -72,6 +75,8 @@ Se limita la distancia de cámara a 850 metros en los perfiles ligeros y a 1800 
 | `js/outbreak/mission.js` | Reglas de progreso, salud, resistencia y configuración del capítulo |
 | `js/outbreak/navigation.js` | Rejilla local de obstáculos y campo de rutas compartido |
 | `js/outbreak/actors.js` | Movimiento y presentación de la población |
+| `js/outbreak/sector.js` | Suelo y aceras del sector; filtro geográfico de bloques |
+| `js/outbreak/incidents.js` | Choque, patrulla, agentes, fuego y humo dirigidos |
 | `js/outbreak/population.js` | Detección, objetivos, ataques e incubación del contagio |
 | `js/outbreak/zombie-model.js` | Modelos procedurales de zombis con instancias compartidas |
 | `js/outbreak/sound.js` | Efectos de teléfono, noticias, alarma y gruñidos |

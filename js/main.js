@@ -20,10 +20,12 @@ import { NYCMapSystem } from './nyc-map.js';
 import { setupSceneCulling, updateSceneCulling } from './scene-culling.js';
 import { CityAudioSystem } from './audio-system.js';
 import { OutbreakGame } from './outbreak/game.js';
+import { buildMissionGround } from './outbreak/sector.js';
+import { MANHATTAN } from './outbreak/mission.js';
 
-const quality = new URLSearchParams(location.search).get('quality') || 'balanced';
+let quality = new URLSearchParams(location.search).get('quality') || 'balanced';
 const outbreakEnabled = new URLSearchParams(location.search).get('mode') !== 'explore';
-const cinematic = !outbreakEnabled || quality === 'cinematic';
+const cinematic = !outbreakEnabled;
 
 // js/main.js
 // Main entry point for New York City (Midtown Manhattan) in Three.js WebGPURenderer & TSL (three.js dev, see index.html)
@@ -51,9 +53,9 @@ async function initApp() {
     powerPreference: 'high-performance',
     reversedDepthBuffer: true
   });
-  renderer.setPixelRatio(cinematic ? 1 : quality === 'low' ? 0.6 : 0.8);
+  renderer.setPixelRatio(cinematic || quality === 'cinematic' ? 1 : quality === 'low' ? 0.6 : 0.8);
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.shadowMap.enabled = cinematic;
+  renderer.shadowMap.enabled = cinematic || quality === 'cinematic';
   renderer.lighting = new ClusteredLighting(256, 32, 28, 48);
   container.appendChild(renderer.domElement);
 
@@ -79,17 +81,17 @@ async function initApp() {
   }
 
   // 3. Build Manhattan Geography, Iconic Landmarks, Blocks, Street Details & Traffic
-  const cityGrid = buildCityGrid(scene);
+  const cityGrid = outbreakEnabled ? buildMissionGround(scene, MANHATTAN.bounds) : buildCityGrid(scene);
   markInit('cityGrid');
-  const boroughs = buildBoroughs(scene, { sidewalks: cityGrid.sidewalks });
+  const boroughs = outbreakEnabled ? { colliders: [] } : buildBoroughs(scene, { sidewalks: cityGrid.sidewalks });
   markInit('boroughs');
-  const { colliders: landmarkColliders } = buildLandmarks(scene);
+  const { colliders: landmarkColliders } = outbreakEnabled ? { colliders: [] } : buildLandmarks(scene);
   markInit('landmarks');
-  const cityBlocks = buildCityBlocks(scene);
+  const cityBlocks = buildCityBlocks(scene, outbreakEnabled ? { bounds: cityGrid.bounds } : {});
   markInit('blocks');
   const allColliders = [...landmarkColliders, ...cityBlocks.colliders, ...boroughs.colliders, ...(cityGrid.colliders || [])];
 
-  const streetDetails = buildStreetDetails(scene);
+  const streetDetails = outbreakEnabled ? { footprints: [], audioSignals: [], signalClock: { value: 0 } } : buildStreetDetails(scene);
   markInit('streetDetails');
   // Buildings turned along non-grid streets have oriented colliders whose world bounds reach past their lots: they stay
   // inside the property line anyway, so the road network (lanes & sidewalks) doesn't need them.
@@ -101,7 +103,7 @@ async function initApp() {
   ], outbreakEnabled ? { cars: 24, buses: 2, pedestrians: 0 } : {});
   markInit('traffic');
   const highwayTraffic = createHighwayTraffic(scene, outbreakEnabled ? [] : cityGrid.highwayLanes);
-  buildRoadPaint(scene, trafficSystem.network);
+  if (!outbreakEnabled) buildRoadPaint(scene, trafficSystem.network);
   markInit('roadPaint');
 
   // 4. Initialize Third-Person Controllers (Person, Car, Cyclist, Helicopter) & Multi-Camera System
@@ -458,7 +460,7 @@ async function initApp() {
     return destination;
   }
 
-  const mapSystem = new NYCMapSystem({
+  const mapSystem = outbreakEnabled ? { isFullMapOpen: false, toggleFullMap() {} } : new NYCMapSystem({
     controllerManager,
     cameraSystem,
     trafficSystem,
@@ -565,8 +567,18 @@ async function initApp() {
   selectTime('golden');
   // the web fonts change the buttons' widths once they arrive
   if (document.fonts) document.fonts.ready.then(placeModeIndicator);
+  function applyQuality(value) {
+    quality = ['low','balanced','cinematic'].includes(value) ? value : 'balanced';
+    renderer.setPixelRatio(quality === 'low' ? .6 : quality === 'balanced' ? .8 : 1);
+    renderer.shadowMap.enabled = quality === 'cinematic';
+    renderer.setSize(window.innerWidth,window.innerHeight);
+    cameraSystem.camera.far = quality === 'cinematic' ? 1000 : 700;
+    cameraSystem.camera.updateProjectionMatrix();
+    const url = new URL(location.href);url.searchParams.set('quality',quality);history.replaceState(null,'',url);
+  }
+  if(outbreakEnabled) applyQuality(quality);
   const outbreak = outbreakEnabled ? new OutbreakGame({ scene, controller: controllerManager,
-    camera: cameraSystem, colliders: allColliders, audio: audioSystem }) : null;
+    camera: cameraSystem, colliders: allColliders, audio: audioSystem, onQuality: applyQuality }) : null;
   if (outbreak) {
     touchControls.setEnabled(false);
     gamepadControls.setEnabled(false);
@@ -682,11 +694,15 @@ async function initApp() {
     // Update 3rd-person controllers, camera, signals, traffic & vehicle collisions, building LODs, and dynamic shadow focus
     gamepadControls.update(dt);
     if (!outbreak || outbreak.beforeUpdate(dt)) controllerManager.update(dt, elapsed);
-    if (outbreak) outbreak.update(dt);
+    if (outbreak) {
+      outbreak.update(dt);
+      if(outbreak.mission.phase==='escape' && !outbreak.atmosphere) {selectTime('twilight');outbreak.atmosphere=true;}
+      if(outbreak.mission.phase==='intro' && outbreak.atmosphere) {selectTime('golden');outbreak.atmosphere=false;}
+    }
     cameraSystem.update(dt, elapsed);
     streetDetails.signalClock.value = elapsed;
     trafficSystem.update(
-      outbreak && !outbreak.mission.playing ? 0 : dt,
+      outbreak && (!outbreak.mission.playing || outbreak.mission.phase === 'escape') ? 0 : dt,
       elapsed,
       cameraSystem.currentPos,
       controllerManager.getActiveEntity(),

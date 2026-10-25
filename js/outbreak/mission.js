@@ -13,8 +13,9 @@ export const MANHATTAN = {
   maxStamina: 100,
   attackDamage: 14,
   attackCooldown: 1.2,
-  zombieSpeed: 0.85,
+  zombieSpeed: 2.15,
   zombieCount: 12,
+  reinforcementCount: 16,
   civilianCount: 40,
   incubationSeconds: 6,
   turningSeconds: 2

@@ -1,6 +1,6 @@
 export const MESSAGES = {
   es: {
-    quality: 'Calidad (reinicia la partida)', qualityLow: 'Rendimiento', qualityBalanced: 'Equilibrado', qualityHigh: 'Cinemático', infections: 'Contagios',
+    quality: 'Calidad gráfica', qualityLow: 'Rendimiento', qualityBalanced: 'Equilibrado', qualityHigh: 'Cinemático', infections: 'Contagios',
     chapter: 'CAPÍTULO 01 / MANHATTAN', title: 'Antes del silencio',
     tagline: 'Saliste a comprar. Ahora solo quieres volver a casa.',
     fiction: 'Ficción · 2020 alternativo. Esta infección, los informativos y los sucesos no describen la pandemia real de COVID-19.',
@@ -29,7 +29,7 @@ export const MESSAGES = {
     waiting: 'Escucha la llamada. Hay movimiento junto al centro médico…'
   },
   en: {
-    quality: 'Quality (restarts the game)', qualityLow: 'Performance', qualityBalanced: 'Balanced', qualityHigh: 'Cinematic', infections: 'Infections',
+    quality: 'Graphics quality', qualityLow: 'Performance', qualityBalanced: 'Balanced', qualityHigh: 'Cinematic', infections: 'Infections',
     chapter: 'CHAPTER 01 / MANHATTAN', title: 'Before the silence',
     tagline: 'You went out for supplies. Now you just want to get home.',
     fiction: 'Fiction · Alternate 2020. This infection, the broadcasts and events do not depict the real COVID-19 pandemic.',

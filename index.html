@@ -59,6 +59,8 @@
   <link rel="modulepreload" href="./js/outbreak/population.js" />
   <link rel="modulepreload" href="./js/outbreak/zombie-model.js" />
   <link rel="modulepreload" href="./js/outbreak/sound.js" />
+  <link rel="modulepreload" href="./js/outbreak/sector.js" />
+  <link rel="modulepreload" href="./js/outbreak/incidents.js" />
   <script type="module" src="./js/main.js"></script>
   <!-- Inter (UI) & Overpass (street-name signs: modelled on Highway Gothic, the US road sign typeface) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -101,7 +103,7 @@
   <!-- Loading Screen -->
   <div id="loading-overlay" role="status" aria-live="polite">
     <div class="loader">
-      <span class="mta-bullet loader-bullet" aria-hidden="true">NY</span>
+      <span class="mta-bullet loader-bullet" aria-hidden="true">ZE</span>
       <div class="loader-title">Zombies Everywhere</div>
       <div class="loader-track is-indeterminate" aria-hidden="true"><span id="loading-progress" class="loader-fill"></span></div>
       <div id="loading-status">Initializing WebGPURenderer &amp; TSL Shaders...</div>
@@ -114,7 +116,7 @@
   <!-- Top-Left: Brand & Renderer Telemetry -->
   <header class="hud hud-top-left">
     <div class="panel brand">
-      <span class="mta-bullet" aria-hidden="true">NY</span>
+      <span class="mta-bullet" aria-hidden="true">ZE</span>
       <div class="brand-titles">
         <div class="brand-heading">
           <h1>Slop New York</h1>
@@ -275,7 +277,7 @@
 
     <div class="fullmap-header">
       <div class="panel fullmap-title">
-        <span class="mta-bullet" aria-hidden="true">NY</span>
+        <span class="mta-bullet" aria-hidden="true">ZE</span>
         <div>
           <h2>Manhattan Street Atlas</h2>
           <p id="fullmap-player-info" class="fullmap-subtitle">You are at 5th Ave &amp; 35th St</p>

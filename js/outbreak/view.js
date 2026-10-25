@@ -1,7 +1,7 @@
 import { MESSAGES, getLanguage } from './locales.js';
 
 export class OutbreakView {
-  constructor({ onStart, onSkip, onPause, onLanguage, onSound }) {
+  constructor({ onStart, onSkip, onPause, onLanguage, onSound, onQuality }) {
     try { this.language = getLanguage(window.localStorage); } catch { this.language = 'es'; }
     this.root = document.createElement('section'); this.root.id = 'outbreak'; this.root.hidden = true;
     // Static markup only; all narrative text is assigned through textContent.
@@ -36,7 +36,7 @@ export class OutbreakView {
     this.$('.ze-pause').addEventListener('click', onPause);
     this.$('.ze-sound').addEventListener('click', onSound);
     this.$('.ze-quality').value = new URLSearchParams(location.search).get('quality') || 'balanced';
-    this.$('.ze-quality').addEventListener('change', (e) => { const url = new URL(location.href); url.searchParams.set('quality', e.target.value); location.assign(url.href); });
+    this.$('.ze-quality').addEventListener('change', (e) => onQuality(e.target.value));
     this.translate();
   }
   t(key) { return MESSAGES[this.language][key] ?? key; }
