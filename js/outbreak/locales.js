@@ -1,13 +1,13 @@
 export const MESSAGES = {
   es: {
-    quality: 'Calidad gráfica', qualityLow: 'Rendimiento', qualityBalanced: 'Equilibrado', qualityHigh: 'Cinemático', infections: 'Contagios',
+    radio: 'RADIO DE LA PATRULLA', objectiveRadio: 'Busca la patrulla y mantén F junto a la radio durante 3 s para solicitar acceso al refugio.', threat: 'Infectado cerca', quality: 'Calidad gráfica', qualityLow: 'Rendimiento', qualityBalanced: 'Equilibrado', qualityHigh: 'Cinemático', infections: 'Contagios',
     chapter: 'CAPÍTULO 01 / MANHATTAN', title: 'Antes del silencio',
     tagline: 'Saliste a comprar. Ahora solo quieres volver a casa.',
     fiction: 'Ficción · 2020 alternativo. Esta infección, los informativos y los sucesos no describen la pandemia real de COVID-19.',
     start: 'Comenzar historia', restart: 'Volver a intentarlo', skip: 'Salir a la calle →',
     language: 'Idioma', city: 'Ciudad', lima: 'Lima · próximo capítulo',
     health: 'Salud', stamina: 'Resistencia', pause: 'Pausar', resume: 'Continuar', paused: 'Partida en pausa',
-    controls: 'W/S caminar · A/D girar · Shift correr · Espacio saltar · Arrastrar ratón: cámara · Esc pausa',
+    controls: 'W/S caminar · A/D girar · Shift correr · Espacio saltar · Arrastrar ratón: cámara · F radio · Esc pausa',
     objectiveErrand: 'Ve a la farmacia junto al centro médico. Sigue la señal ámbar.',
     objectiveEscape: '¡Corre al refugio temporal! Sigue la señal verde.',
     hospital: 'CENTRO MÉDICO HUDSON · FICTICIO', shelter: 'REFUGIO TEMPORAL',
@@ -29,14 +29,14 @@ export const MESSAGES = {
     waiting: 'Escucha la llamada. Hay movimiento junto al centro médico…'
   },
   en: {
-    quality: 'Graphics quality', qualityLow: 'Performance', qualityBalanced: 'Balanced', qualityHigh: 'Cinematic', infections: 'Infections',
+    radio: 'PATROL RADIO', objectiveRadio: 'Find the patrol car and hold F by its radio for 3 s to request shelter access.', threat: 'Infected nearby', quality: 'Graphics quality', qualityLow: 'Performance', qualityBalanced: 'Balanced', qualityHigh: 'Cinematic', infections: 'Infections',
     chapter: 'CHAPTER 01 / MANHATTAN', title: 'Before the silence',
     tagline: 'You went out for supplies. Now you just want to get home.',
     fiction: 'Fiction · Alternate 2020. This infection, the broadcasts and events do not depict the real COVID-19 pandemic.',
     start: 'Begin story', restart: 'Try again', skip: 'Step outside →',
     language: 'Language', city: 'City', lima: 'Lima · next chapter',
     health: 'Health', stamina: 'Stamina', pause: 'Pause', resume: 'Resume', paused: 'Game paused',
-    controls: 'W/S walk · A/D turn · Shift sprint · Space jump · Drag mouse: camera · Esc pause',
+    controls: 'W/S walk · A/D turn · Shift sprint · Space jump · Drag mouse: camera · F radio · Esc pause',
     objectiveErrand: 'Reach the pharmacy beside the medical centre. Follow the amber marker.',
     objectiveEscape: 'Run to the temporary shelter! Follow the green marker.',
     hospital: 'HUDSON MEDICAL CENTRE · FICTIONAL', shelter: 'TEMPORARY SHELTER',

@@ -42,3 +42,12 @@ progress::-webkit-progress-bar { background:#36434c; } .ze-health::-webkit-progr
 #outbreak.ze-hit { box-shadow:inset 0 0 100px 20px #e74747a0; }
 @media(max-width:700px) { .ze-top { left:14px; right:14px; top:14px; }.ze-settings { gap:4px; }#outbreak .ze-settings button,#outbreak select { padding:8px;font-size:10px; }.ze-brand { font-size:13px; }.ze-brand span { font-size:8px; }.ze-hud { left:14px; width:55vw; top:80px; }.ze-map { width:110px;height:87px;right:14px;bottom:190px; }.ze-feed { left:14px;right:14px;width:auto;bottom:60px;padding:12px; }.ze-feed-text { font-size:12px; }.ze-controls { font-size:9px;left:14px;right:14px; }.ze-screen { padding:90px 24px 30px; }.ze-card h1 { letter-spacing:-1px; }.ze-tv-picture { height:100px; }.ze-tv-picture span { font-size:70px; }.ze-bulletin { font-size:14px; }.ze-description { font-size:15px; } }
 @media(prefers-reduced-motion:reduce) { #outbreak * { animation:none!important;transition:none!important; } }
+
+/* Intro text remains accessible; the news image now lives on a television in a 3D room. */
+#outbreak .ze-broadcast {background:none;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;padding:20px;pointer-events:none;}
+#outbreak .ze-bulletin {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);margin:0;}
+#outbreak .ze-timeline {width:min(600px,70vw);margin-bottom:8px;}
+#outbreak .ze-skip {margin:0;pointer-events:auto;background:#101820e8;}
+
+.ze-threat {color:#ff8269;font-size:12px;margin-top:8px;}
+#outbreak.ze-danger {box-shadow:inset 0 0 100px #390c1488;}

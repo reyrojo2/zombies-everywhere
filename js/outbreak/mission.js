@@ -5,6 +5,9 @@ export const MANHATTAN = {
   spawn: { x: -18, z: 80, heading: Math.PI },
   hospital: { x: -18, z: -160 },
   shelter: { x: -18, z: -470 },
+  radio: { x: -4, z: -227 },
+  radioArrivalSeconds: 17,
+  radioHoldSeconds: 3,
   triggerRadius: 20,
   safeRadius: 9,
   introSeconds: 42,
@@ -26,12 +29,13 @@ export class Mission {
   reset() {
     this.phase = 'menu'; this.time = 0; this.health = this.config.maxHealth;
     this.stamina = this.config.maxStamina; this.hurtCooldown = 0;
+    this.radioReady = false; this.radioProgress = 0;
     this.paused = false; this.exhausted = false;
   }
   start() { this.reset(); this.phase = 'intro'; }
   get playing() { return ['errand', 'escape'].includes(this.phase) && !this.paused; }
   skipIntro() { if (this.phase === 'intro') { this.phase = 'errand'; this.time = 0; } }
-  tick(dt, position, wantsSprint = false) {
+  tick(dt, position, wantsSprint = false, interacting = false) {
     if (this.paused || ['menu', 'won', 'lost'].includes(this.phase)) return;
     this.time += dt;
     this.hurtCooldown = Math.max(0, this.hurtCooldown - dt);
@@ -45,8 +49,15 @@ export class Mission {
     if (this.stamina === 0) this.exhausted = true;
     if (this.phase === 'errand' && this.time >= this.config.callSeconds && distance(position, this.config.hospital) <= this.config.triggerRadius) {
       this.phase = 'escape'; this.time = 0;
-    } else if (this.phase === 'escape' && distance(position, this.config.shelter) <= this.config.safeRadius) {
+    } else if (this.phase === 'escape') {
+      if(!this.radioReady) {
+        const atRadio=this.time>=this.config.radioArrivalSeconds && distance(position,this.config.radio)<7;
+        this.radioProgress=atRadio && interacting ? Math.min(this.config.radioHoldSeconds,this.radioProgress+dt) : 0;
+        if(this.radioProgress>=this.config.radioHoldSeconds)this.radioReady=true;
+      }
+      if(this.radioReady && distance(position, this.config.shelter) <= this.config.safeRadius) {
       this.phase = 'won';
+      }
     }
   }
   hurt() {

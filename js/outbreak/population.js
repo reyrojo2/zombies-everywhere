@@ -6,7 +6,7 @@ export class Population {
   reset() { this.actors = []; this.infections = 0; this.active = false; this.decisionTime = 0; }
   add(point, zombie = false) {
     const a = { ...point, id: this.actors.length, state: zombie ? 'zombie' : 'normal', civilian: !zombie,
-      heading: Math.PI, timer: 0, attackTimer: 0, target: null, sheltered: false };
+      hunter: zombie && this.actors.length%3!==0, heading: Math.PI, timer: 0, attackTimer: 0, target: null, sheltered: false };
     this.actors.push(a); return a;
   }
   activate() { this.active = true; }
@@ -26,7 +26,7 @@ export class Population {
         a.timer -= dt;
         if (a.timer <= 0) {
           if (a.state === 'bitten') { a.state = 'turning'; a.timer = this.config.turningSeconds; }
-          else { a.state = 'zombie'; a.civilian = false; a.target = null; }
+          else { a.state = 'zombie'; a.civilian = false; a.hunter = true; a.target = null; }
         }
         continue;
       }
@@ -38,12 +38,13 @@ export class Population {
         continue;
       }
       let target = player, best = distance(a, player);
+      const prefersPlayer=a.hunter || best<28;
       for (const civilian of this.actors) {
         if (!['normal', 'fleeing'].includes(civilian.state) || civilian.sheltered) continue;
         const d = distance(a, civilian);
-        if (d < best && clear(a, civilian)) { target = civilian; best = d; }
+        if ((!prefersPlayer || d<1.4) && d < best && clear(a, civilian)) { target = civilian; best = d; }
       }
-      a.target = best < 85 ? target : null;
+      a.target = best < (a.hunter ? 120 : 85) ? target : null;
       if (best < 1.4 && clear(a, target) && a.attackTimer === 0) {
         if (target === player) hurt(); else this.infect(target);
         a.attackTimer = this.config.attackCooldown;

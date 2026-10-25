@@ -19,9 +19,9 @@ python -m http.server 8000
 Abre **http://localhost:8000** en un navegador de escritorio con aceleración gráfica. No abras `index.html` directamente con `file://`. No hay instalación del juego, cuentas ni servidor de partidas. Hace falta conexión para descargar Three.js y otros recursos externos; el primer arranque puede tardar por la construcción de Manhattan y sus shaders.
 
 1. Selecciona Español o English y pulsa **Comenzar historia**.
-2. Lee las tres emisiones de noticias (42 segundos), o pulsa **Salir a la calle**.
+2. Mira el informativo animado en un televisor dentro de una sala 3D (42 segundos), o pulsa **Salir a la calle**. La cámara se acerca a la pantalla; la emisión cambia de fecha, mueve al presentador y muestra un hospital con luces de emergencia. Es animación procedural, no una grabación periodística real.
 3. Sigue el marcador ámbar hacia el centro médico y escucha la llamada.
-4. Cuando empieza el brote, sigue el marcador verde hasta el refugio. Los personajes de piel gris verdosa y ropa oscura son zombis; en el minimapa aparecen en rojo, los civiles en azul y las personas contagiadas en ámbar.
+4. Cuando empieza el brote, busca la patrulla. Tras su llegada (17 segundos), mantén **F durante 3 segundos** junto a la radio para pedir acceso al refugio. Después sigue el marcador verde. Los personajes de piel gris verdosa y ropa oscura son zombis; en el minimapa aparecen en rojo, los civiles en azul y las personas contagiadas en ámbar.
 5. Si pierdes toda la salud, puedes reiniciar. Llegar al refugio termina esta primera misión.
 
 | Control | Acción |
@@ -31,19 +31,20 @@ Abre **http://localhost:8000** en un navegador de escritorio con aceleración gr
 | Shift | Correr; consume resistencia |
 | Espacio | Saltar |
 | Arrastrar ratón | Girar la cámara |
+| F (mantener) | Solicitar acceso al refugio por la radio de la patrulla |
 | Esc o botón Pausar | Pausar / continuar |
 
 La partida también se pausa al cambiar de pestaña o perder el foco. El idioma se guarda localmente si el navegador lo permite. La misión se reinicia al recargar; no hay guardado de progreso. La resistencia agotada debe recuperar un 25% antes de volver a correr.
 
 ### Alcance de esta entrega
 
-- Manhattan, sector delimitado; noticias y llamada mediante texto, sin doblaje.
+- Manhattan, sector jugable delimitado con 500 manzanas de entorno; informativo animado sobre una TV 3D y llamada mediante texto, sin doblaje.
 - Centro médico y refugio señalizados en el exterior; no hay interiores de hospital o apartamento.
-- Doce zombis iniciales con marcha rápida (2,15–2,31 m/s), sin carrera y 40 peatones de misión. Los peatones cercanos detectan amenazas visibles, huyen e intentan alcanzar el refugio. Los zombis pueden atacar al jugador o a un civil visible más cercano.
+- Doce zombis iniciales con marcha rápida (2,15–2,31 m/s), sin carrera y 40 peatones de misión. Los peatones cercanos detectan amenazas visibles, huyen e intentan alcanzar el refugio. Algunos zombis cazadores priorizan al protagonista hasta 120 metros, sin abandonar una víctima a distancia de mordida. Los otros eligen entre el jugador y civiles cercanos. Esto evita que toda la horda se aleje persiguiendo a civiles más rápidos.
 - Un ataque a corta distancia contagia al peatón: 6 segundos herido, 2 segundos de transformación y después se convierte en un zombi. El proceso está identificado por el color ámbar en el minimapa y un contador de contagios. Las paredes bloquean el contacto; los refugiados están a salvo. El total de actores nunca aumenta por el contagio. Hay hasta cuatro entradas adicionales de cuatro zombis por las calles 44 a 47, con separación mínima de 22 metros respecto al jugador y un máximo de 68 actores contando los refuerzos.
 - Apariencia de zombi propia con piel gris verdosa, ropa oscura, heridas, inclinación corporal, brazos adelantados y paso lento. Modelos procedurales sencillos dibujados mediante instancias compartidas.
 - El brote activa la huida de todos los civiles de misión, un choque dirigido entre dos autos, la llegada de una patrulla con dos agentes, tres focos de incendio y humo y una transición al anochecer. Estos incidentes usan el reloj de misión y se congelan durante la pausa; no son una simulación física completa de accidentes o propagación de fuego. Acercarse a los focos de incendio causa daño.
-- Efectos sintetizados: entrada de noticias, teléfono, desconexión, alarma del hospital, sirenas repetidas, impacto y gruñidos espaciales de zombis cercanos con ruido y frecuencias medias audibles en altavoces pequeños. Sin archivos de audio externos ni doblaje. Los efectos comparten mute y volumen con el audio urbano; se detienen al pausar o reiniciar.
+- Gruñidos mediante tres grabaciones vocales CC0 de artisticdude, incluidas localmente (unos 20 KB en total). Se decodifican tras activar el audio y alternan con ligeras variaciones. Procedencia, licencia y conversión en [assets/audio/CREDITS.md](assets/audio/CREDITS.md). Teléfono, sirenas, impacto y ruido ambiental siguen siendo sintetizados. No hay doblaje de noticias o diálogos. Se conservan mute, pausa y límite de voces.
 - Salud, resistencia, navegación, pausa, victoria, derrota y reinicio.
 - Interfaz y narrativa en español e inglés. Los nombres propios permanecen.
 - **Sin armas todavía**: este episodio prueba la huida. El arma, el regreso a casa y la búsqueda completa de Elena son la siguiente entrega.
@@ -62,11 +63,13 @@ El selector aplica la calidad en el momento: mantiene la misión, la salud, el c
 | --- | --- | --- |
 | Rendimiento | 60% por eje | Sin sombras, reflejos SSR ni bloom |
 | Equilibrado (predeterminado) | 80% por eje | Sin sombras, reflejos SSR ni bloom |
-| Cinemático | 100% por eje | Sombras; la misión mantiene desactivados SSR y bloom |
+| Cinemático | 100% por eje | Sombras, reflejos SSR, bloom y tratamiento de color originales |
 
-La misión construye suelo, aceras y edificios únicamente para los bloques reales que intersectan el sector y un margen visual de 100 metros. No genera los distritos lejanos, los monumentos del mapa completo, sus autopistas o sus detalles de calle. El explorador original conserva la ciudad completa y sus efectos. Los datos geográficos compartidos y el grafo de tráfico original siguen cargándose; esta entrega no incorpora streaming de nuevos sectores.
+La misión selecciona exactamente las 500 manzanas más cercanas al centro del recorrido, con sus edificios originales. Restaura los monumentos dentro de ese entorno, incluida la Biblioteca Pública de Nueva York y su relación con Bryant Park. Las aceras son losas extruidas de 22 cm con textura de concreto, juntas y caras de bordillo; ya no se pinta de verde todo un bloque clasificado como parque. Las losas se agrupan por celdas de 200 m para reducir llamadas de dibujo.
 
-La cámara alcanza 700 metros en los perfiles ligeros y 1000 metros en el cinemático. La población tiene un máximo de 68 actores; el contagio reutiliza al civil. No se garantiza una tasa de FPS sin medir el equipo objetivo.
+Las 500 manzanas permanecen residentes; la cámara y el culling por frustum/celdas limitan lo que se dibuja. El detalle arquitectónico cercano sigue usando el quadtree del proyecto original. Alcance de cámara: 350 m en Rendimiento, 550 m en Equilibrado y 850 m en Cinemático. No es streaming infinito ni descarga dinámica de edificios. La generación inicial y la primera compilación de efectos pueden tardar, especialmente en Cinemático.
+
+El selector mantiene la partida. Activar Cinemático puede compilar por primera vez sus sombras/reflejos. El mapa geográfico compartido y el grafo de tráfico siguen cargándose. El máximo de población es de 68 actores; el contagio reutiliza al civil. No se garantiza una tasa de FPS sin medir el equipo objetivo.
 
 ### Estructura
 
@@ -75,7 +78,8 @@ La cámara alcanza 700 metros en los perfiles ligeros y 1000 metros en el cinem�
 | `js/outbreak/mission.js` | Reglas de progreso, salud, resistencia y configuración del capítulo |
 | `js/outbreak/navigation.js` | Rejilla local de obstáculos y campo de rutas compartido |
 | `js/outbreak/actors.js` | Movimiento y presentación de la población |
-| `js/outbreak/sector.js` | Suelo y aceras del sector; filtro geográfico de bloques |
+| `js/outbreak/sector.js` | Selección de 500 manzanas, aceras y agrupación espacial |
+| `js/outbreak/tv-introduction.js` | Sala, televisor 3D y emisión animada |
 | `js/outbreak/incidents.js` | Choque, patrulla, agentes, fuego y humo dirigidos |
 | `js/outbreak/population.js` | Detección, objetivos, ataques e incubación del contagio |
 | `js/outbreak/zombie-model.js` | Modelos procedurales de zombis con instancias compartidas |

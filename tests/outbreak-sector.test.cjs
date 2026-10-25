@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const {loadModule}=require('./helpers/module.cjs');
 const sector=loadModule(fs.readFileSync(require('node:path').join(__dirname,'../js/outbreak/sector.js'),'utf8'),{
-  imports:{'three/webgpu':{},'../city-config.js':{BLOCKS:[],STREETS:[]}}
+  imports:{'three/webgpu':{},'three/addons/utils/BufferGeometryUtils.js':{},'../city-config.js':{BLOCKS:[],STREETS:[]}}
 });
 test('sector includes intersecting blocks and excludes distant boroughs',()=>{
  const bounds={minX:-460,maxX:280,minZ:-700,maxZ:240};
@@ -43,4 +43,11 @@ test('reinforcements arrive in four bounded waves and restart resets the directo
  for(const time of [7,16,25,34,100]) {mission.time=time;actors.update(.01,{position:{x:0,z:100}},mission,nav);}
  assert.equal(actors.actors.length,68);assert.equal(actors.wave,4);
  actors.prepare();assert.equal(actors.actors.length,40);assert.equal(actors.wave,0);
+});
+
+test('500 nearest blocks are selected deterministically without mutating geography',()=>{
+ const blocks=Array.from({length:600},(_,id)=>({id,minX:id*10,maxX:id*10+5,minZ:0,maxZ:5}));
+ const selected=sector.selectMissionBlocks(blocks,{minX:0,maxX:20,minZ:0,maxZ:20});
+ assert.equal(selected.length,500);assert.equal(new Set(selected.map(b=>b.id)).size,500);
+ assert.ok(selected.some(b=>b.id===0));assert.ok(!selected.some(b=>b.id===599));assert.equal(blocks.length,600);
 });

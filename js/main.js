@@ -85,9 +85,9 @@ async function initApp() {
   markInit('cityGrid');
   const boroughs = outbreakEnabled ? { colliders: [] } : buildBoroughs(scene, { sidewalks: cityGrid.sidewalks });
   markInit('boroughs');
-  const { colliders: landmarkColliders } = outbreakEnabled ? { colliders: [] } : buildLandmarks(scene);
+  const { colliders: landmarkColliders } = buildLandmarks(scene, outbreakEnabled ? { bounds: cityGrid.bounds } : {});
   markInit('landmarks');
-  const cityBlocks = buildCityBlocks(scene, outbreakEnabled ? { bounds: cityGrid.bounds } : {});
+  const cityBlocks = buildCityBlocks(scene, outbreakEnabled ? { bounds: cityGrid.bounds, blockIds: cityGrid.blockIds } : {});
   markInit('blocks');
   const allColliders = [...landmarkColliders, ...cityBlocks.colliders, ...boroughs.colliders, ...(cityGrid.colliders || [])];
 
@@ -185,8 +185,10 @@ async function initApp() {
   scenePass.renderTarget.storeMultisampledColorBuffer = false;
   let sceneMRT = null;
   let colorGrade = { applyPreset() {} };
-  let renderPipeline = { render: () => renderer.render(scene, cameraSystem.camera) };
-  if (cinematic) {
+  const directPipeline = { render: () => renderer.render(scene, cameraSystem.camera) };
+  let fullPipeline = null;
+  let renderPipeline = directPipeline;
+  {
     const ssrFade = smoothstep(360.0, 180.0, positionView.z.negate());
     const maxSSRRoughness = 0.75;
     sceneMRT = mrt({
@@ -222,7 +224,8 @@ async function initApp() {
     const reflectionMask = scenePassMetalRough.r.greaterThan(0).select(smoothstep(maxSSRRoughness, 0.55, scenePassMetalRough.g), 0);
     const reflections = ssrPass.mul(reflectionMask);
     colorGrade = createPostProcessing(renderer, scenePassColor, reflections);
-    renderPipeline = new THREE.RenderPipeline(renderer, colorGrade.outputNode);
+    fullPipeline = new THREE.RenderPipeline(renderer, colorGrade.outputNode);
+    renderPipeline = cinematic || quality === 'cinematic' ? fullPipeline : directPipeline;
   }
 
   // 6. Wire UI Controls (Strictly using safe DOM APIs: textContent, classList, addEventListener)
@@ -571,8 +574,9 @@ async function initApp() {
     quality = ['low','balanced','cinematic'].includes(value) ? value : 'balanced';
     renderer.setPixelRatio(quality === 'low' ? .6 : quality === 'balanced' ? .8 : 1);
     renderer.shadowMap.enabled = quality === 'cinematic';
+    renderPipeline = quality === 'cinematic' ? fullPipeline : directPipeline;
     renderer.setSize(window.innerWidth,window.innerHeight);
-    cameraSystem.camera.far = quality === 'cinematic' ? 1000 : 700;
+    cameraSystem.camera.far = quality === 'cinematic' ? 850 : quality === 'low' ? 350 : 550;
     cameraSystem.camera.updateProjectionMatrix();
     const url = new URL(location.href);url.searchParams.set('quality',quality);history.replaceState(null,'',url);
   }
@@ -641,8 +645,8 @@ async function initApp() {
       job.push(o);
     });
 
-    renderer.setRenderTarget(cinematic ? scenePass.renderTarget : null);
-    renderer.setMRT(sceneMRT);
+    renderer.setRenderTarget(cinematic || quality==='cinematic' ? scenePass.renderTarget : null);
+    renderer.setMRT(cinematic || quality==='cinematic' ? sceneMRT : null);
     const compile = async (object) => {
       // Each compile starts in a task of its own: compileAsync() keeps one precompilation state on the renderer,
       // which must not be mid-step for two of them in the same microtask checkpoint
@@ -743,7 +747,8 @@ async function initApp() {
       for (const o of culled) o.frustumCulled = true;
       markInit('warmup');
     }
-    renderPipeline.render();
+    if(outbreak?.mission.phase==='intro') outbreak.intro.render(renderer,outbreak.mission,k=>outbreak.view.t(k));
+    else renderPipeline.render();
     if (!warmedUp) {
       warmedUp = true;
       markInit('firstFrame');

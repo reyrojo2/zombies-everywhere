@@ -10,6 +10,8 @@ test('intro, hospital proximity AND finished call gate the outbreak; shelter end
   m.tick(10, MANHATTAN.hospital); assert.equal(m.phase, 'errand');
   m.tick(15, MANHATTAN.spawn); assert.equal(m.phase, 'errand');
   m.tick(0.1, MANHATTAN.hospital); assert.equal(m.phase, 'escape');
+  m.tick(1, MANHATTAN.shelter); assert.equal(m.phase, 'escape');
+  m.tick(17, MANHATTAN.radio, false, true); assert.equal(m.radioReady,true);
   m.tick(1, MANHATTAN.shelter); assert.equal(m.phase, 'won');
   m.hurt(); assert.equal(m.health, 100);
 });
@@ -128,4 +130,22 @@ test('procedural audio limits voices and releases nodes when stopped', () => {
   context.createOscillator=()=>({...node(),frequency:param(),start(){},stop(){}});
   for(let i=0;i<20;i++)sound.tone(440,.5);
   assert.equal(sound.voices.size,6);sound.stop();assert.equal(sound.voices.size,0);
+});
+
+test('radio requires arrival and uninterrupted nearby interaction; evacuation stays locked until then',()=>{
+ const m=new Mission(MANHATTAN);m.start();m.skipIntro();m.tick(25,MANHATTAN.hospital);
+ m.tick(10,MANHATTAN.radio,false,true);assert.equal(m.radioReady,false);
+ m.tick(8,MANHATTAN.radio,false,true); // arrival has occurred
+ assert.equal(m.radioReady,true);
+ m.start();m.skipIntro();m.tick(25,MANHATTAN.hospital);m.tick(17,MANHATTAN.hospital);
+ m.tick(1.5,MANHATTAN.radio,false,true);assert.equal(m.radioReady,false);
+ m.tick(.1,MANHATTAN.spawn,false,true);assert.equal(m.radioProgress,0);
+ m.tick(2,MANHATTAN.radio,false,true);assert.equal(m.radioReady,false);
+ m.tick(1,MANHATTAN.radio,false,true);assert.equal(m.radioReady,true);
+});
+
+test('hunters pursue the player instead of distant civilians, but can still bite a touching victim',()=>{
+ const p=new Population(MANHATTAN),civilian=p.add({x:0,z:0});const hunter=p.add({x:2,z:0},true);p.activate();
+ const player={x:30,z:0};p.update(.25,player,()=>true,()=>{});assert.equal(hunter.target,player);
+ hunter.x=1;p.update(.25,player,()=>true,()=>{});assert.equal(civilian.state,'bitten');
 });

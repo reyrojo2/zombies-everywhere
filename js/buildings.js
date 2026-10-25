@@ -253,7 +253,7 @@ function carve(r, holes, axis = 'x') {
   return out.map(([u0, u1, v0, v1]) => (flip ? rect(v0, v1, u0, u1) : rect(u0, u1, v0, v1)));
 }
 
-function buildCityBlocks(scene, { bounds = null } = {}) {
+function buildCityBlocks(scene, { bounds = null, blockIds = null } = {}) {
   const group = new THREE.Group();
   group.name = 'ManhattanCityBlocks';
   const colliders = [];
@@ -1990,6 +1990,7 @@ function buildCityBlocks(scene, { bounds = null } = {}) {
     return out;
   }
   for (const b of BLOCKS) {
+    if (blockIds && !blockIds.has(b.id)) continue;
     if (bounds && (b.maxX < bounds.minX || b.minX > bounds.maxX || b.maxZ < bounds.minZ || b.minZ > bounds.maxZ)) continue;
     if (b.park > 0.6 || b.median) continue;
     minLot = b.frames ? 12 : 15;

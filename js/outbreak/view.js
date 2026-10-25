@@ -9,7 +9,7 @@ export class OutbreakView {
       <div class="ze-top"><a class="ze-brand" href="./">ZOMBIES<span>EVERYWHERE</span></a>
       <div class="ze-settings"><label><span data-text="language"></span> <select aria-label="Idioma / Language"><option value="es">Español</option><option value="en">English</option></select></label>
       <label><span data-text="quality"></span><select class="ze-quality" aria-label="Calidad / Quality"><option value="low" data-text="qualityLow"></option><option value="balanced" data-text="qualityBalanced"></option><option value="cinematic" data-text="qualityHigh"></option></select></label><button class="ze-sound" type="button"></button><button class="ze-pause" type="button" data-text="pause"></button></div></div>
-      <div class="ze-hud"><div class="ze-objective"></div><div class="ze-distance"></div>
+      <div class="ze-hud"><div class="ze-objective"></div><div class="ze-distance"></div><div class="ze-threat"></div>
       <div class="ze-vitals"><label><span data-text="health"></span><progress class="ze-health" max="100" value="100"></progress></label>
       <label><span data-text="stamina"></span><progress class="ze-stamina" max="100" value="100"></progress></label></div></div>
       <canvas class="ze-map" width="240" height="190" aria-label="Mapa / Map"></canvas>
@@ -20,9 +20,8 @@ export class OutbreakView {
       <div class="ze-cities"><span>● Manhattan</span><span data-text="lima"></span></div>
       <button class="ze-primary" type="button"></button><p class="ze-hint" data-text="hint"></p>
       <small class="ze-credits" data-text="credits"></small></div></div>
-      <div class="ze-broadcast"><div class="ze-tv"><div class="ze-tv-label" data-text="news"></div>
-      <div class="ze-tv-picture"><span>8</span><p>WORLD / SIGNAL</p></div><p class="ze-bulletin"></p>
-      <div class="ze-timeline"><i></i></div><button class="ze-skip" type="button" data-text="skip"></button></div></div>`;
+      <div class="ze-broadcast"><p class="ze-bulletin" role="status" aria-live="polite"></p>
+      <div class="ze-timeline"><i></i></div><button class="ze-skip" type="button" data-text="skip"></button></div>`;
     document.body.append(this.root);
     this.$ = (s) => this.root.querySelector(s);
     this.$('select').value = this.language;
@@ -48,7 +47,7 @@ export class OutbreakView {
     this.$('.ze-health').setAttribute('aria-label', this.t('health'));
     this.$('.ze-stamina').setAttribute('aria-label', this.t('stamina'));
   }
-  render(mission, { distance = 0, feed = '', boundary = false, sound = true, infections = 0 } = {}) {
+  render(mission, { distance = 0, feed = '', boundary = false, sound = true, infections = 0, threat = 999 } = {}) {
     this.last = mission;
     const phase = mission.phase, terminal = phase === 'won' || phase === 'lost';
     const screen = phase === 'menu' || terminal || mission.paused;
@@ -67,8 +66,10 @@ export class OutbreakView {
     this.$('.ze-primary').textContent = this.t(mission.paused ? 'resume' : terminal ? 'restart' : 'start');
     this.$('.ze-cities').hidden = phase !== 'menu';
     this.$('.ze-hint').hidden = terminal;
-    this.$('.ze-objective').textContent = this.t(phase === 'escape' ? 'objectiveEscape' : 'objectiveErrand');
-    this.$('.ze-distance').textContent = `${Math.ceil(distance)} m · ${this.t(phase === 'escape' ? 'shelter' : 'hospital')} · ${this.t('infections')}: ${infections}`;
+    this.$('.ze-objective').textContent = this.t(phase === 'escape' ? (mission.radioReady ? 'objectiveEscape' : 'objectiveRadio') : 'objectiveErrand');
+    this.$('.ze-distance').textContent = `${Math.ceil(distance)} m · ${this.t(phase === 'escape' ? (mission.radioReady ? 'shelter' : 'radio') : 'hospital')} · ${this.t('infections')}: ${infections}`;
+    this.$('.ze-threat').textContent = threat<25 ? `${this.t('threat')}: ${Math.ceil(threat)} m` : phase==='escape' && !mission.radioReady ? `${Math.floor(mission.radioProgress/mission.config.radioHoldSeconds*100)}%` : '';
+    this.root.classList.toggle('ze-danger',threat<14 && mission.playing);
     this.$('.ze-health').value = mission.health;
     this.$('.ze-stamina').value = mission.stamina;
     const text = this.t(boundary ? 'boundary' : feed);
