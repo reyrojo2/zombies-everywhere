@@ -1,0 +1,44 @@
+body.outbreak-mode .hud, body.outbreak-mode .popover, body.outbreak-mode #fullmap-overlay, body.outbreak-mode .touch-controls { display: none !important; }
+#outbreak { position:fixed; inset:0; z-index:120; color:#eee9dc; font-family:system-ui,sans-serif; pointer-events:none; }
+#outbreak [hidden] { display:none !important; }
+#outbreak button,#outbreak select,#outbreak a { pointer-events:auto; }
+#outbreak button,#outbreak select { font:inherit; color:inherit; border:1px solid #ffffff40; background:#121b20; border-radius:4px; padding:10px 15px; cursor:pointer; }
+#outbreak button:hover { background:#344149; }
+#outbreak :focus-visible { outline:3px solid #e5b45a; outline-offset:4px; }
+.ze-top { position:absolute; top:24px; left:28px; right:28px; display:flex; align-items:center; justify-content:space-between; gap:20px; z-index:5; }
+.ze-brand { font-size:18px; font-weight:900; line-height:1; letter-spacing:2px; text-decoration:none; color:#eee9dc; text-shadow:0 2px 8px #000; }
+.ze-brand span { display:block; color:#ef6557; font-size:11px; letter-spacing:3px; margin-top:6px; }
+.ze-settings { display:flex; gap:8px; align-items:center; font-size:12px; }
+.ze-settings label > span { position:absolute; width:1px; height:1px; overflow:hidden; }
+.ze-screen { position:absolute; inset:0; background:linear-gradient(90deg,#081015f5 0%,#081015dc 50%,#08101560); display:flex; align-items:center; padding:100px 8vw 45px; pointer-events:auto; overflow:auto; }
+.ze-card { max-width:660px; }
+.ze-eyebrow { color:#e5b45a; font-size:12px; font-weight:700; letter-spacing:3px; margin:0 0 24px; }
+.ze-card h1 { color:#eee9dc; font-size:clamp(38px,6vw,78px); line-height:1.03; letter-spacing:-3px; margin:0 0 22px; text-transform:none; }
+.ze-description { white-space:pre-line; line-height:1.65; font-size:18px; max-width:560px; }
+.ze-fiction { border-left:2px solid #ef6557; padding-left:15px; color:#afb7bc; font-size:12px; line-height:1.6; max-width:520px; margin:24px 0; }
+.ze-cities { display:flex; gap:24px; margin:25px 0; font-size:13px; }
+.ze-cities span:first-child { color:#e5b45a; }.ze-cities span:last-child { color:#98a0a5; }
+#outbreak .ze-primary { background:#e5b45a; color:#11191e; font-weight:800; padding:16px 28px; border:0; }
+#outbreak .ze-primary:hover { background:#f8ce82; }
+.ze-hint { font-size:12px; color:#b9c2c8; margin:16px 0 30px; }
+.ze-credits { display:block; color:#89969f; font-size:10px; line-height:1.6; max-width:480px; }
+.ze-hud { position:absolute; left:28px; top:100px; padding:18px; width:min(380px,42vw); background:#0a1118d9; border-left:3px solid #e5b45a; border-radius:3px; }
+.ze-objective { font-size:15px; font-weight:700; line-height:1.5; }.ze-distance { font-size:10px; letter-spacing:1px; color:#e5b45a; margin-top:10px; }
+.ze-vitals { display:flex; gap:16px; margin-top:18px; font-size:11px; }.ze-vitals label { flex:1; }.ze-vitals span { display:block; margin-bottom:6px; }
+.ze-vitals progress { width:100%; height:7px; border:0; background:#36434c; border-radius:2px; }.ze-health { accent-color:#ef6557; }.ze-stamina { accent-color:#e5b45a; }
+progress::-webkit-progress-bar { background:#36434c; } .ze-health::-webkit-progress-value { background:#ef6557; }.ze-stamina::-webkit-progress-value { background:#e5b45a; }
+.ze-map { position:absolute; right:28px; bottom:75px; border:1px solid #ffffff40; border-radius:4px; width:210px; height:167px; }
+.ze-feed { position:absolute; bottom:75px; left:28px; width:min(620px,calc(100vw - 300px)); padding:18px 22px; background:#0a1118ed; border-top:2px solid #ef6557; }
+.ze-feed-label { color:#ef6557; font-size:10px; letter-spacing:2px; font-weight:800; }.ze-feed-text { font-size:15px; line-height:1.6; white-space:pre-line; margin:10px 0 0; }
+.ze-controls { position:absolute; bottom:20px; left:28px; right:28px; text-align:center; font-size:11px; color:#fff; text-shadow:0 2px 4px #000; }
+.ze-broadcast { position:absolute; inset:0; background:#070c11ef; display:grid; place-items:center; pointer-events:auto; padding:85px 20px 30px; }
+.ze-tv { width:min(760px,90vw); background:#101d28; border:1px solid #33414e; box-shadow:0 30px 100px #000; }
+.ze-tv-label { background:#b93632; padding:13px 24px; font-size:12px; letter-spacing:3px; }
+.ze-tv-picture { height:180px; background:repeating-linear-gradient(0deg,#172832 0px,#172832 2px,#10202c 3px,#10202c 5px); display:flex; align-items:center; justify-content:center; gap:24px; }
+.ze-tv-picture span { font-size:110px; font-weight:900; color:#e5b45a; }.ze-tv-picture p { letter-spacing:5px; color:#9cb0bf; font-size:12px; }
+.ze-bulletin { min-height:95px; line-height:1.7; margin:24px; font-size:17px; }
+.ze-timeline { height:3px; background:#33414e; }.ze-timeline i { display:block; height:100%; background:#e5b45a; }
+#outbreak .ze-skip { display:block; margin:18px 24px 18px auto; }
+#outbreak.ze-hit { box-shadow:inset 0 0 100px 20px #e74747a0; }
+@media(max-width:700px) { .ze-top { left:14px; right:14px; top:14px; }.ze-settings { gap:4px; }#outbreak .ze-settings button,#outbreak select { padding:8px;font-size:10px; }.ze-brand { font-size:13px; }.ze-brand span { font-size:8px; }.ze-hud { left:14px; width:55vw; top:80px; }.ze-map { width:110px;height:87px;right:14px;bottom:190px; }.ze-feed { left:14px;right:14px;width:auto;bottom:60px;padding:12px; }.ze-feed-text { font-size:12px; }.ze-controls { font-size:9px;left:14px;right:14px; }.ze-screen { padding:90px 24px 30px; }.ze-card h1 { letter-spacing:-1px; }.ze-tv-picture { height:100px; }.ze-tv-picture span { font-size:70px; }.ze-bulletin { font-size:14px; }.ze-description { font-size:15px; } }
+@media(prefers-reduced-motion:reduce) { #outbreak * { animation:none!important;transition:none!important; } }

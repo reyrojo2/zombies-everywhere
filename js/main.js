@@ -19,6 +19,9 @@ import { LightingSystem } from './lighting.js';
 import { NYCMapSystem } from './nyc-map.js';
 import { setupSceneCulling, updateSceneCulling } from './scene-culling.js';
 import { CityAudioSystem } from './audio-system.js';
+import { OutbreakGame } from './outbreak/game.js';
+
+const outbreakEnabled = new URLSearchParams(location.search).get('mode') !== 'explore';
 
 // js/main.js
 // Main entry point for New York City (Midtown Manhattan) in Three.js WebGPURenderer & TSL (three.js dev, see index.html)
@@ -116,6 +119,7 @@ async function initApp() {
   } catch { /* Missing or unavailable storage does not prevent playing. */ }
 
   function savePlayerState() {
+    if (outbreakEnabled) return;
     try {
       const entities = Object.fromEntries(Object.entries(controllerManager.entities).map(([mode, entity]) => [mode, {
         x: entity.position.x, y: entity.position.y, z: entity.position.z, heading: entity.heading
@@ -553,6 +557,15 @@ async function initApp() {
   selectTime('golden');
   // the web fonts change the buttons' widths once they arrive
   if (document.fonts) document.fonts.ready.then(placeModeIndicator);
+  const outbreak = outbreakEnabled ? new OutbreakGame({ scene, controller: controllerManager,
+    camera: cameraSystem, colliders: allColliders, audio: audioSystem }) : null;
+  if (outbreak) {
+    touchControls.setEnabled(false);
+    gamepadControls.setEnabled(false);
+    selectMode('person');
+    // Explorer HUDs remain in the DOM for their existing modules, but cannot take focus.
+    document.querySelectorAll('.hud, .popover, #fullmap-overlay').forEach((node) => { node.inert = true; });
+  }
   markInit('ui');
 
   // The loading screen stays up while the shaders compile (precompileShaders() & the warm-up frame, see the loop) and
@@ -660,11 +673,12 @@ async function initApp() {
 
     // Update 3rd-person controllers, camera, signals, traffic & vehicle collisions, building LODs, and dynamic shadow focus
     gamepadControls.update(dt);
-    controllerManager.update(dt, elapsed);
+    if (!outbreak || outbreak.beforeUpdate(dt)) controllerManager.update(dt, elapsed);
+    if (outbreak) outbreak.update(dt);
     cameraSystem.update(dt, elapsed);
     streetDetails.signalClock.value = elapsed;
     trafficSystem.update(
-      dt,
+      outbreak && !outbreak.mission.playing ? 0 : dt,
       elapsed,
       cameraSystem.currentPos,
       controllerManager.getActiveEntity(),
@@ -718,6 +732,7 @@ async function initApp() {
         initTimings = null;
         if (loadingOverlay) loadingOverlay.classList.add('hidden');
         audioSystem.ready = true;
+        if (outbreak) outbreak.view.root.hidden = false;
         setLoadingProgress(1);
       });
     }
@@ -751,4 +766,8 @@ async function initApp() {
   });
 }
 
-initApp();
+initApp().catch((error) => {
+  console.error(error);
+  const status = document.getElementById('loading-status');
+  if (status) status.textContent = 'No se pudo cargar la ciudad / City failed to load. Recarga la página o prueba un navegador con aceleración gráfica / Reload or try a browser with graphics acceleration.';
+});
