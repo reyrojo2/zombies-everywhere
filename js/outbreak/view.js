@@ -1,7 +1,7 @@
 import { MESSAGES, getLanguage } from './locales.js';
 
 export class OutbreakView {
-  constructor({ onStart, onSkip, onPause, onLanguage, onSound, onQuality }) {
+  constructor({ onStart, onSkip, onPause, onLanguage, onSound, onQuality, onAnswer }) {
     try { this.language = getLanguage(window.localStorage); } catch { this.language = 'es'; }
     this.root = document.createElement('section'); this.root.id = 'outbreak'; this.root.hidden = true;
     // Static markup only; all narrative text is assigned through textContent.
@@ -9,7 +9,7 @@ export class OutbreakView {
       <div class="ze-top"><a class="ze-brand" href="./">ZOMBIES<span>EVERYWHERE</span></a>
       <div class="ze-settings"><label><span data-text="language"></span> <select aria-label="Idioma / Language"><option value="es">Español</option><option value="en">English</option></select></label>
       <label><span data-text="quality"></span><select class="ze-quality" aria-label="Calidad / Quality"><option value="low" data-text="qualityLow"></option><option value="balanced" data-text="qualityBalanced"></option><option value="cinematic" data-text="qualityHigh"></option></select></label><button class="ze-sound" type="button"></button><button class="ze-pause" type="button" data-text="pause"></button></div></div>
-      <div class="ze-hud"><div class="ze-objective"></div><div class="ze-distance"></div><div class="ze-threat"></div>
+      <button class="ze-phone-answer" type="button" data-text="answer"></button><div class="ze-hud"><div class="ze-objective"></div><div class="ze-distance"></div><div class="ze-threat"></div>
       <div class="ze-vitals"><label><span data-text="health"></span><progress class="ze-health" max="100" value="100"></progress></label>
       <label><span data-text="stamina"></span><progress class="ze-stamina" max="100" value="100"></progress></label></div></div>
       <canvas class="ze-map" width="240" height="190" aria-label="Mapa / Map"></canvas>
@@ -19,7 +19,7 @@ export class OutbreakView {
       <h1></h1><p class="ze-description"></p><p class="ze-fiction" data-text="fiction"></p>
       <div class="ze-cities"><span>● Manhattan</span><span data-text="lima"></span></div>
       <button class="ze-primary" type="button"></button><p class="ze-hint" data-text="hint"></p>
-      <small class="ze-credits" data-text="credits"></small></div></div>
+      <small class="ze-credits" data-text="credits"></small><small class="ze-credits"><a href="https://opengameart.org/content/epic-news-theme-beyond-the-clouds-v2" target="_blank" rel="noopener noreferrer">Music: Matthew Pablo — Beyond The Clouds · CC BY 3.0 (excerpt)</a></small></div></div>
       <div class="ze-broadcast"><p class="ze-bulletin" role="status" aria-live="polite"></p>
       <div class="ze-timeline"><i></i></div><button class="ze-skip" type="button" data-text="skip"></button></div>`;
     document.body.append(this.root);
@@ -30,6 +30,7 @@ export class OutbreakView {
       try { localStorage.setItem('ze-language', this.language); } catch { /* Optional preference storage. */ }
       this.translate(); onLanguage();
     });
+    this.$('.ze-phone-answer').addEventListener('click',onAnswer);
     this.$('.ze-primary').addEventListener('click', () => this.last?.paused ? onPause() : onStart());
     this.$('.ze-skip').addEventListener('click', onSkip);
     this.$('.ze-pause').addEventListener('click', onPause);
@@ -56,8 +57,9 @@ export class OutbreakView {
     this.$('.ze-broadcast').hidden = phase !== 'intro' || mission.paused;
     this.$('.ze-hud').hidden = !mission.playing;
     this.$('.ze-map').hidden = !mission.playing;
-    this.$('.ze-feed').hidden = !mission.playing;
-    this.$('.ze-controls').hidden = screen || phase === 'intro';
+    this.$('.ze-feed').hidden = !mission.playing && phase!=='phone';
+    this.$('.ze-phone-answer').hidden = phase!=='phone' || mission.phoneAnswered || mission.paused;
+    this.$('.ze-controls').hidden = screen || phase === 'intro' || phase==='phone';
     this.$('.ze-pause').hidden = phase === 'menu' || terminal;
     this.$('.ze-pause').textContent = this.t(mission.paused ? 'resume' : 'pause');
     this.$('.ze-sound').textContent = `${this.t('sound')}: ${this.t(sound ? 'on' : 'off')}`;

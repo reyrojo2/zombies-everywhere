@@ -4,7 +4,7 @@ Browser survival prototype built on [Slop New York](https://github.com/mrdoob/sl
 
 ## Primera misión: Antes del silencio
 
-Un 2020 alternativo y ficticio. Mientras las noticias informan de una infección desconocida, sales a comprar y hablas por teléfono con Elena, tu esposa. Un incidente junto al **Centro Médico Hudson, ficticio**, convierte el paseo en una huida hacia un refugio temporal.
+Un 2020 alternativo y ficticio. Mientras las noticias informan de una infección desconocida, sales a comprar y hablas por teléfono con tu esposa. Un incidente junto al **Centro Médico Hudson, ficticio**, convierte el paseo en una huida hacia un refugio temporal.
 
 Los informativos, el origen de la infección y los acontecimientos son ficción; no representan hechos de la pandemia real de COVID-19.
 
@@ -20,7 +20,7 @@ Abre **http://localhost:8000** en un navegador de escritorio con aceleración gr
 
 1. Selecciona Español o English y pulsa **Comenzar historia**.
 2. Mira el informativo animado en un televisor dentro de una sala 3D (42 segundos), o pulsa **Salir a la calle**. La cámara se acerca a la pantalla; la emisión cambia de fecha, mueve al presentador y muestra un hospital con luces de emergencia. Es animación procedural, no una grabación periodística real.
-3. Sigue el marcador ámbar hacia el centro médico y escucha la llamada.
+3. Camina hacia la farmacia. A los pocos segundos se levanta el celular con una alerta sanitaria y la llamada de **Esposa**. Pulsa **Contestar** o **F**. La secuencia vuelve a la calle al terminar el primer diálogo; el nombre propio anterior se ha eliminado.
 4. Cuando empieza el brote, busca la patrulla. Tras su llegada (17 segundos), mantén **F durante 3 segundos** junto a la radio para pedir acceso al refugio. Después sigue el marcador verde. Los personajes de piel gris verdosa y ropa oscura son zombis; en el minimapa aparecen en rojo, los civiles en azul y las personas contagiadas en ámbar.
 5. Si pierdes toda la salud, puedes reiniciar. Llegar al refugio termina esta primera misión.
 
@@ -40,14 +40,14 @@ La partida también se pausa al cambiar de pestaña o perder el foco. El idioma 
 
 - Manhattan, sector jugable delimitado con 500 manzanas de entorno; informativo animado sobre una TV 3D y llamada mediante texto, sin doblaje.
 - Centro médico y refugio señalizados en el exterior; no hay interiores de hospital o apartamento.
-- Doce zombis iniciales con marcha rápida (2,15–2,31 m/s), sin carrera y 40 peatones de misión. Los peatones cercanos detectan amenazas visibles, huyen e intentan alcanzar el refugio. Algunos zombis cazadores priorizan al protagonista hasta 120 metros, sin abandonar una víctima a distancia de mordida. Los otros eligen entre el jugador y civiles cercanos. Esto evita que toda la horda se aleje persiguiendo a civiles más rápidos.
+- Doce zombis iniciales con marcha rápida (2,55–2,71 m/s), sin carrera y 40 peatones de misión. Los civiles están distribuidos en varios grupos y huyen hacia cinco salidas: norte, dos al este y dos al oeste. Usan velocidades individuales y separación local para evitar una fila única; si una salida no es navegable, recurren a una ruta conectada. Algunos zombis cazadores priorizan al protagonista hasta 120 metros, sin abandonar una víctima a distancia de mordida. Los otros eligen entre el jugador y civiles cercanos. El trayecto previo ya incluye vehículos detenidos y una patrulla que pasa con luces, antes del brote.
 - Un ataque a corta distancia contagia al peatón: 6 segundos herido, 2 segundos de transformación y después se convierte en un zombi. El proceso está identificado por el color ámbar en el minimapa y un contador de contagios. Las paredes bloquean el contacto; los refugiados están a salvo. El total de actores nunca aumenta por el contagio. Hay hasta cuatro entradas adicionales de cuatro zombis por las calles 44 a 47, con separación mínima de 22 metros respecto al jugador y un máximo de 68 actores contando los refuerzos.
 - Apariencia de zombi propia con piel gris verdosa, ropa oscura, heridas, inclinación corporal, brazos adelantados y paso lento. Modelos procedurales sencillos dibujados mediante instancias compartidas.
-- El brote activa la huida de todos los civiles de misión, un choque dirigido entre dos autos, la llegada de una patrulla con dos agentes, tres focos de incendio y humo y una transición al anochecer. Estos incidentes usan el reloj de misión y se congelan durante la pausa; no son una simulación física completa de accidentes o propagación de fuego. Acercarse a los focos de incendio causa daño.
-- Gruñidos mediante tres grabaciones vocales CC0 de artisticdude, incluidas localmente (unos 20 KB en total). Se decodifican tras activar el audio y alternan con ligeras variaciones. Procedencia, licencia y conversión en [assets/audio/CREDITS.md](assets/audio/CREDITS.md). Teléfono, sirenas, impacto y ruido ambiental siguen siendo sintetizados. No hay doblaje de noticias o diálogos. Se conservan mute, pausa y límite de voces.
+- El brote activa la huida de todos los civiles de misión, cuatro choques dirigidos (ocho vehículos), la llegada de una patrulla con dos agentes, seis focos de incendio y humo que se activan a los 3, 8, 13, 18, 23 y 28 segundos y una transición al anochecer. Estos incidentes usan el reloj de misión y se congelan durante la pausa; no son una simulación física completa de accidentes o propagación de fuego. Acercarse a los focos de incendio causa daño.
+- Gruñidos mediante tres grabaciones vocales CC0 de artisticdude, incluidas localmente (unos 20 KB en total). Se decodifican tras activar el audio y alternan con ligeras variaciones. Procedencia, licencia y conversión en [assets/audio/CREDITS.md](assets/audio/CREDITS.md). La TV alterna estudio y tomas ampliadas cada cinco segundos; sus tres boletines muestran hospital/ambulancia, imágenes urbanas no verificadas y un mapa internacional. Una sintonía real de noticias, **Beyond The Clouds** de **Matthew Pablo** (CC BY 3.0, extracto con atribución en el menú), acompaña la introducción. Durante la huida suenan gritos **CC0 de WuxiaScrub**. Todos los archivos están incluidos localmente. Teléfono, sirenas, impacto y ruido ambiental siguen siendo sintetizados. No hay doblaje de noticias o diálogos. Se conservan mute, pausa y límite de voces.
 - Salud, resistencia, navegación, pausa, victoria, derrota y reinicio.
 - Interfaz y narrativa en español e inglés. Los nombres propios permanecen.
-- **Sin armas todavía**: este episodio prueba la huida. El arma, el regreso a casa y la búsqueda completa de Elena son la siguiente entrega.
+- **Sin armas todavía**: este episodio prueba la huida. El arma, el regreso a casa y la búsqueda completa de tu esposa son la siguiente entrega.
 - **Lima está anunciada, pero no es seleccionable todavía.** Tendrá un escenario y una disponibilidad de armas propios.
 - Objetivo de soporte inicial: PC, teclado y ratón; no se ha implementado el modo de supervivencia para móvil o mando.
 
@@ -79,7 +79,8 @@ El selector mantiene la partida. Activar Cinemático puede compilar por primera 
 | `js/outbreak/navigation.js` | Rejilla local de obstáculos y campo de rutas compartido |
 | `js/outbreak/actors.js` | Movimiento y presentación de la población |
 | `js/outbreak/sector.js` | Selección de 500 manzanas, aceras y agrupación espacial |
-| `js/outbreak/tv-introduction.js` | Sala, televisor 3D y emisión animada |
+| `js/outbreak/tv-introduction.js` | Sala, televisor 3D y planos variables de la emisión |
+| `js/outbreak/phone-sequence.js` | Celular 3D, notificación, llamada entrante y transición de cámara |
 | `js/outbreak/incidents.js` | Choque, patrulla, agentes, fuego y humo dirigidos |
 | `js/outbreak/population.js` | Detección, objetivos, ataques e incubación del contagio |
 | `js/outbreak/zombie-model.js` | Modelos procedurales de zombis con instancias compartidas |

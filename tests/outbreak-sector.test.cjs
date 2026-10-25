@@ -16,12 +16,12 @@ test('directed crash, patrol arrival, pause and reset share the mission clock',(
  class Vector{set(x,y,z){this.x=x;this.y=y;this.z=z;}setScalar(s){this.set(s,s,s);}}
  class Group{constructor(){this.position=new Vector();this.rotation={};this.scale=new Vector();this.userData={};this.children=[];}add(m){this.children.push(m);}}
  class Mesh extends Group{}
- const THREE={Group,Mesh,MeshStandardMaterial:class{},MeshBasicMaterial:class{},BoxGeometry:class{},CylinderGeometry:class{},ConeGeometry:class{},IcosahedronGeometry:class{}};
+ const THREE={Group,Mesh,PointLight:class extends Group{},MeshStandardMaterial:class{},MeshBasicMaterial:class{},BoxGeometry:class{},CylinderGeometry:class{},ConeGeometry:class{},IcosahedronGeometry:class{}};
  const {OutbreakIncidents}=loadModule(fs.readFileSync(require('node:path').join(__dirname,'../js/outbreak/incidents.js'),'utf8'),{imports:{'three/webgpu':THREE,'../city-config.js':{streetZ:n=>(42-n)*80}}});
  const incidents=new OutbreakIncidents(new Group(),{}),mission={phase:'escape',time:2,paused:false,hurt(){}};
  incidents.update(.1,mission,{x:-100,z:0});assert.equal(incidents.crashed,false);
  mission.time=10;incidents.update(.1,mission,{x:-100,z:0});assert.equal(incidents.crashed,true);assert.equal(incidents.police.visible,true);
- assert.ok(incidents.flames.every(f=>f.mesh.visible));
+ assert.equal(incidents.flames.filter(f=>f.mesh.visible).length,14);
  const before=incidents.carA.position.z;mission.paused=true;mission.time=0;incidents.update(.1,mission,{});assert.equal(incidents.carA.position.z,before);
  incidents.reset();assert.equal(incidents.group.visible,false);assert.equal(incidents.crashed,false);
 });
@@ -50,4 +50,18 @@ test('500 nearest blocks are selected deterministically without mutating geograp
  const selected=sector.selectMissionBlocks(blocks,{minX:0,maxX:20,minZ:0,maxZ:20});
  assert.equal(selected.length,500);assert.equal(new Set(selected.map(b=>b.id)).size,500);
  assert.ok(selected.some(b=>b.id===0));assert.ok(!selected.some(b=>b.id===599));assert.equal(blocks.length,600);
+});
+
+test('civilian routes produce different escape directions instead of one shared queue',async()=>{
+ const {Population}=await import('../js/outbreak/population.js');const {MANHATTAN,distance}=await import('../js/outbreak/mission.js');
+ class Crowd{constructor(){this.meshes=[];}begin(){}end(){}add(){}}class Rig{update(){}}class Models{reset(){}draw(){}}
+ const {OutbreakActors}=loadModule(fs.readFileSync(require('node:path').join(__dirname,'../js/outbreak/actors.js'),'utf8'),{imports:{
+ '../pedestrians.js':{PersonCrowd:Crowd,PersonRig:Rig},'./mission.js':{distance},'./population.js':{Population},'../city-config.js':{streetZ:n=>(42-n)*80},'./zombie-model.js':{ZombieModels:Models}}});
+ const nav={nearest:p=>p,clear:()=>true,flood(){},index:()=>0,cost:[0],step(p,t,s){const d=Math.hypot(t.x-p.x,t.z-p.z)||1;return {x:p.x+(t.x-p.x)/d*s,z:p.z+(t.z-p.z)/d*s};}};
+ const actors=new OutbreakActors({add(){}},nav,{getGroundHeight:()=>0},MANHATTAN);actors.prepare();actors.spawn();
+ const before=actors.actors.slice(0,4).map(a=>({...a}));
+ const routes=[{nav,goal:{x:10000,z:-100}},{nav,goal:{x:-10000,z:-185}},{nav,goal:{x:25,z:-10000}},{nav,goal:{x:-90,z:10000}}];
+ actors.update(.1,{position:{x:1000,z:1000}},{time:1,hurt(){}},nav,routes);
+ assert.ok(actors.actors[0].x>before[0].x);assert.ok(actors.actors[1].x<before[1].x);
+ assert.ok(actors.actors[2].z<before[2].z);assert.ok(actors.actors[3].z>before[3].z);
 });

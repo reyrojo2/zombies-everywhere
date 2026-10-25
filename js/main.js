@@ -100,7 +100,7 @@ async function initApp() {
     ...cityGrid.footprints,
     ...streetDetails.footprints,
     ...allColliders.filter((c) => !c.obb && (c.minY ?? 0) < 3.5)
-  ], outbreakEnabled ? { cars: 24, buses: 2, pedestrians: 0 } : {});
+  ], outbreakEnabled ? { cars: 24, buses: 2, pedestrians: 0, fixedPaint: true } : {});
   markInit('traffic');
   const highwayTraffic = createHighwayTraffic(scene, outbreakEnabled ? [] : cityGrid.highwayLanes);
   if (!outbreakEnabled) buildRoadPaint(scene, trafficSystem.network);
@@ -704,6 +704,7 @@ async function initApp() {
       if(outbreak.mission.phase==='intro' && outbreak.atmosphere) {selectTime('golden');outbreak.atmosphere=false;}
     }
     cameraSystem.update(dt, elapsed);
+    if(outbreak)outbreak.phone.update(outbreak.mission,k=>outbreak.view.t(k));
     streetDetails.signalClock.value = elapsed;
     trafficSystem.update(
       outbreak && (!outbreak.mission.playing || outbreak.mission.phase === 'escape') ? 0 : dt,

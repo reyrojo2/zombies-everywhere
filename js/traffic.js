@@ -226,7 +226,8 @@ function createTrafficSystem(scene, sidewalks, obstacles, population = {}) {
     const lodMesh = (g) => {
       g.setAttribute('paintColor', new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3));
       g.setAttribute('carState', new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4));
-      return new THREE.InstancedMesh(g, mat, n);
+      const bodyMaterial=population.fixedPaint ? createLoftedCarMaterial(BODY_SPECS[kind],kind==='taxi'?0xffc526:kind==='suv'?0x7d3b39:0x748ea3) : mat;
+      const mesh=new THREE.InstancedMesh(g,bodyMaterial,n);mesh.name='TrafficBody_'+kind;return mesh;
     };
     bodies[kind] = { near: lodMesh(geo), far: lodMesh(buildCarProxyGeometry(BODY_SPECS[kind])) };
   }
@@ -269,6 +270,7 @@ function createTrafficSystem(scene, sidewalks, obstacles, population = {}) {
   // NYPD roof light bars (the blue & white livery is painted by the sedan material from the instance's carState)
   const policeLightbarInst = new THREE.InstancedMesh(buildLightbarGeometry(BODY_SPECS.sedan), createLightbarMaterial(), Math.max(1, policeCount));
   const carShadowInst = new THREE.InstancedMesh(unitPlane, contactShadowMat, NUM_CARS);
+  carShadowInst.name = 'TrafficContactShadows';
   carShadowInst.renderOrder = 998;
 
   for (const m of bodyMeshes) m.castShadow = m.receiveShadow = true;
@@ -307,6 +309,7 @@ function createTrafficSystem(scene, sidewalks, obstacles, population = {}) {
   const busShadowInst = new THREE.InstancedMesh(unitPlane, contactShadowMat, NUM_BUSES);
   busShadowInst.renderOrder = 998;
 
+  busBodyInst.name = 'TrafficBusBody';
   busBodyInst.castShadow = busBodyInst.receiveShadow = true;
   busWheelLeftInst.castShadow = busWheelLeftInst.receiveShadow = true;
   busWheelRightInst.castShadow = busWheelRightInst.receiveShadow = true;

@@ -38,13 +38,32 @@ export class TVIntroduction {
     c.fillStyle='#6b3834';c.beginPath();c.ellipse(238,197,14,3+Math.abs(Math.sin(time*12))*8,0,0,Math.PI*2);c.fill();
     c.fillStyle='#b78b73';c.fillRect(150,316+Math.sin(time*2)*4,42,15);c.fillRect(285,316,42,15);
     c.fillStyle='#78939f';c.fillRect(34,346,405,42);
-    // Animated fictional hospital feed on the right, with emergency lights and changing case graph.
-    c.fillStyle='#17212b';c.fillRect(468,65,510,320);
-    c.fillStyle='#71818a';c.fillRect(550,111,345,190);c.fillStyle='#c2d6dd';c.fillRect(680,151,70,12);c.fillRect(710,126,12,62);
-    for(let x=570;x<890;x+=55)for(let y=211;y<290;y+=35){c.fillStyle='#223d50';c.fillRect(x,y,25,19);}
-    c.fillStyle='#dddcd2';c.fillRect(510+(time*18%300),316,110,38);
-    c.fillStyle=Math.floor(time*7)%2?'#df514c':'#489bff';c.fillRect(540+(time*18%300),307,35,10);
-    c.fillStyle='#fff';c.font='bold 24px sans-serif';c.fillText((es?['CHINA / ARCHIVO','REPORTES SIN VERIFICAR','ALERTA INTERNACIONAL']:['CHINA / ARCHIVE','UNVERIFIED REPORTS','INTERNATIONAL ALERT'])[index],490,97);
+    // Alternating studio/field shots, with different footage for each bulletin.
+    const wide=Math.floor(time/5)%2===1;
+    if(wide){c.fillStyle='#102131';c.fillRect(20,55,984,335);}
+    c.save();c.translate(wide?30:468,65);c.scale(wide?1.85:1,1);
+    c.fillStyle='#17212b';c.fillRect(0,0,510,320);
+    if(index===0) {
+      c.fillStyle='#71818a';c.fillRect(82,46,345,190);c.fillStyle='#c2d6dd';c.fillRect(212,86,70,12);c.fillRect(242,61,12,62);
+      for(let x=102;x<422;x+=55)for(let y=146;y<225;y+=35){c.fillStyle='#223d50';c.fillRect(x,y,25,19);}
+      const x=35+(time*18%300);c.fillStyle='#dddcd2';c.fillRect(x,251,110,38);
+      c.fillStyle=Math.floor(time*7)%2?'#df514c':'#489bff';c.fillRect(x+30,242,35,10);
+    } else if(index===1) {
+      c.fillStyle='#374655';
+      for(let i=0;i<8;i++)c.fillRect(i*70,70+(i%3)*30,55,190);
+      for(let i=0;i<4;i++){
+        c.fillStyle='#df7d3b';c.beginPath();c.moveTo(65+i*110,280);c.lineTo(80+i*110+Math.sin(time*6+i)*8,210);c.lineTo(102+i*110,280);c.fill();
+        c.fillStyle='#6a6e75';c.beginPath();c.ellipse(80+i*110+(time*6)%50,180-(time*17+i*35)%90,24,40,0,0,Math.PI*2);c.fill();
+      }
+      c.fillStyle='#e0b45d';c.font='16px sans-serif';c.fillText(es?'IMÁGENES SIN VERIFICAR':'UNVERIFIED FOOTAGE',30,305);
+    } else {
+      c.fillStyle='#314e5e';
+      for(const [x,y,w,h] of [[25,75,120,95],[110,180,55,100],[230,80,200,90],[250,170,65,110],[400,230,70,50]])c.fillRect(x,y,w,h);
+      for(const [x,y] of [[85,120],[310,120],[265,180],[425,255]]){c.strokeStyle='#e75a4f';c.lineWidth=3;c.beginPath();c.arc(x,y,5+(time*5)%22,0,Math.PI*2);c.stroke();}
+      c.strokeStyle='#b58b61';c.setLineDash([7,5]);c.beginPath();c.moveTo(85,120);c.lineTo(310,120);c.lineTo(425,255);c.stroke();c.setLineDash([]);
+    }
+    c.fillStyle='#fff';c.font='bold 22px sans-serif';c.fillText((es?['CHINA / ARCHIVO','REPORTES SIN VERIFICAR','ALERTA INTERNACIONAL']:['CHINA / ARCHIVE','UNVERIFIED REPORTS','INTERNATIONAL ALERT'])[index],18,32);
+    c.restore();
     c.fillStyle='#ad302f';c.fillRect(0,0,1024,40);c.font='bold 21px sans-serif';c.fillStyle='#fff';c.fillText(label,24,28);
     c.fillStyle='#ddd';c.font='18px monospace';c.fillText((es?['12 ENE 2020','26 ENE 2020','03 FEB 2020']:['12 JAN 2020','26 JAN 2020','03 FEB 2020'])[index],806,28);
     c.fillStyle='#a72829';c.fillRect(0,398,w,44);c.fillStyle='#fff';c.font='bold 24px sans-serif';c.fillText(es?'ZE / INFORMATIVO':'ZE / WORLD NEWS',24,429);

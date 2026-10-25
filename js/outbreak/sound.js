@@ -1,15 +1,26 @@
 // Short procedural cues share the city's audio context, limiter and master volume.
 export class OutbreakSound {
-  constructor(audio) { this.audio=audio; this.voices=new Set();this.lastCue=null;this.growlTime=0;this.ambienceTime=0;this.crashPlayed=false;this.buffers=[];this.loading=null; }
+  constructor(audio) { this.audio=audio; this.voices=new Set();this.lastCue=null;this.growlTime=0;this.ambienceTime=0;this.crashPlayed=false;this.buffers=[];this.samples={};this.loading=null;this.musicVoice=null;this.screamTime=0;this.ringTime=0; }
   loadSamples() {
     const context=this.audio.context;
     if(this.loading || !context?.decodeAudioData)return;
-    this.loading=Promise.all([1,2,3].map(async n=>{
-      const response=await fetch(new URL(`../../assets/audio/growl-${n}.mp3`,import.meta.url));
-      if(!response.ok)throw new Error('Zombie audio unavailable');
-      return context.decodeAudioData(await response.arrayBuffer());
-    })).then(buffers=>{this.buffers=buffers;}).catch(error=>console.warn('[outbreak audio]',error));
+    const names=['growl-1','growl-2','growl-3','news-theme','panic-scream'];
+    this.loading=Promise.allSettled(names.map(async name=>{
+      const response=await fetch(new URL(`../../assets/audio/${name}.mp3`,import.meta.url));
+      if(!response.ok)throw new Error('Audio unavailable: '+name);
+      const buffer=await context.decodeAudioData(await response.arrayBuffer());this.samples[name]=buffer;
+    })).then(()=>{this.buffers=[1,2,3].map(n=>this.samples['growl-'+n]).filter(Boolean);});
   }
+  playSample(name,volume=.3,position=null,loop=false,offset=0) {
+    const {context,mix,enabled}=this.audio,buffer=this.samples[name];
+    if(!buffer || !enabled || context?.state!=='running' || this.voices.size>=6)return null;
+    const source=context.createBufferSource(),gain=context.createGain();source.buffer=buffer;source.loop=loop;gain.gain.value=volume;
+    let pan=null;source.connect(gain);
+    if(position){pan=context.createPanner();pan.panningModel='equalpower';pan.refDistance=12;pan.rolloffFactor=.7;pan.positionX.value=position.x;pan.positionY.value=1.6;pan.positionZ.value=position.z;gain.connect(pan).connect(mix);}else gain.connect(mix);
+    this.voices.add(source);source.onended=()=>{this.voices.delete(source);if(this.musicVoice===source)this.musicVoice=null;source.disconnect();gain.disconnect();pan?.disconnect();};
+    source.start(0,offset%buffer.duration);return source;
+  }
+
   growl(position,index=0) {
     const {context,mix,enabled}=this.audio;
     if(!enabled || context?.state!=='running' || this.voices.size>=6)return;
@@ -21,7 +32,7 @@ export class OutbreakSound {
     source.connect(gain).connect(pan).connect(mix);this.voices.add(source);
     source.onended=()=>{this.voices.delete(source);source.disconnect();gain.disconnect();pan.disconnect();};source.start();
   }
-  stop() { for(const voice of this.voices) { try{voice.stop();}catch{} } this.voices.clear(); }
+  stop() { for(const voice of this.voices) { try{voice.stop();}catch{} } this.voices.clear();this.musicVoice=null; }
   tone(frequency,duration,volume=.06,position=null,rasp=false,endFrequency=null) {
     const {context,mix,enabled}=this.audio;
     if(!enabled || !context || context.state!=='running' || this.voices.size>=6) return;
@@ -51,15 +62,22 @@ export class OutbreakSound {
     if(!this.audio.context || this.audio.context.state!=='running')return;
     this.loadSamples();
     const cue=mission.phase==='intro'?`news${Math.min(2,Math.floor(mission.time/14))}`:
-      mission.phase==='errand'?(mission.time<2?'phone':'call'):mission.time<9?'alarm':mission.time<23?'disconnect':'escape';
+      mission.phase==='phone'?(mission.phoneAnswered?'call':'phone'):mission.time<9?'alarm':mission.time<23?'disconnect':'escape';
     if(cue!==this.lastCue) {
       this.lastCue=cue;
-      if(cue==='phone') {this.tone(660,.7,.09);this.tone(880,.7,.045);}
-      else if(cue==='disconnect') this.tone(440,.5,.07);
+      if(cue==='disconnect') this.tone(440,.5,.07);
       else if(cue==='alarm') {this.tone(740,1.6,.07,mission.config.hospital);this.tone(960,1.6,.035,mission.config.hospital);}
-      else if(cue.startsWith('news')) this.tone(520,.2,.035);
+
     }
+    if(mission.phase==='intro') {
+      if(!this.musicVoice)this.musicVoice=this.playSample('news-theme',.22,null,true,mission.time);
+    }else if(this.musicVoice){try{this.musicVoice.stop();}catch{}this.musicVoice=null;}
+    if(mission.phase==='phone' && !mission.phoneAnswered){this.ringTime-=dt;if(this.ringTime<=0){this.tone(660,.6,.08);this.tone(880,.6,.04);this.ringTime=2.5;}}
+    if(mission.phase==='errand' && mission.callComplete && mission.time%10<dt)this.tone(650,1,.035,mission.config.hospital,false,1050);
     if(mission.phase==='escape') {
+      this.screamTime-=dt;
+      if(this.screamTime<=0){const civilians=actors.filter(a=>a.state==='fleeing' && !a.sheltered && Math.hypot(a.x-player.x,a.z-player.z)<90);if(civilians.length)this.playSample('panic-scream',.35,civilians[Math.floor(Math.random()*civilians.length)]);this.screamTime=4+Math.random()*4;}
+
       this.ambienceTime-=dt;
       if(this.ambienceTime<=0) {
         // Repeating two-tone emergency sweep and a distant, non-spatial panic bed.
@@ -76,5 +94,5 @@ export class OutbreakSound {
       this.growlTime=.8+Math.random()*1.2;
     }
   }
-  reset() { this.stop();this.lastCue=null;this.growlTime=0;this.ambienceTime=0;this.crashPlayed=false; }
+  reset() { this.stop();this.lastCue=null;this.growlTime=0;this.ambienceTime=0;this.crashPlayed=false;this.screamTime=0;this.ringTime=0; }
 }

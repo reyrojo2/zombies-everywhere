@@ -9,10 +9,13 @@ export class OutbreakIncidents {
     this.flames=[];this.smoke=[];
     const fireMat=new THREE.MeshBasicMaterial({color:0xff671e,transparent:true,opacity:.85});
     const smokeMat=new THREE.MeshBasicMaterial({color:0x272a2c,transparent:true,opacity:.32,depthWrite:false});
-    this.sites=[{x:7,z:streetZ(45)},{x:17,z:streetZ(46)},{x:-34,z:streetZ(47)}];
+    this.sites=[{x:7,z:streetZ(45),start:3},{x:17,z:streetZ(46),start:8},{x:-34,z:streetZ(47),start:13},
+      {x:25,z:streetZ(44),start:18},{x:-50,z:streetZ(46),start:23},{x:12,z:streetZ(48),start:28}];
+    this.pileups=this.sites.slice(1,4).map((site,i)=>({site,a:this.car([0x476f86,0x767a54,0xa49a7c][i]),b:this.car([0x985847,0x626d76,0x76586b][i])}));
+    this.fireLights=[new THREE.PointLight(0xff6e24,0,22),new THREE.PointLight(0xffa23d,0,22)];this.fireLights.forEach(l=>this.group.add(l));
     for(const site of this.sites) {
-      for(let i=0;i<7;i++) {const mesh=new THREE.Mesh(new THREE.ConeGeometry(.6,2.6,5),fireMat);this.group.add(mesh);this.flames.push({mesh,site,i});}
-      for(let i=0;i<6;i++) {const mesh=new THREE.Mesh(new THREE.IcosahedronGeometry(1.4,0),smokeMat);this.group.add(mesh);this.smoke.push({mesh,site,i});}
+      for(let i=0;i<7;i++) {const mesh=new THREE.Mesh(new THREE.ConeGeometry(.9,4.5,6),fireMat);this.group.add(mesh);this.flames.push({mesh,site,i});}
+      for(let i=0;i<6;i++) {const mesh=new THREE.Mesh(new THREE.IcosahedronGeometry(1.8,0),smokeMat);this.group.add(mesh);this.smoke.push({mesh,site,i});}
     }
     this.reset();
   }
@@ -40,8 +43,17 @@ export class OutbreakIncidents {
   }
   reset() {this.time=0;this.crashed=false;this.active=false;this.group.visible=false;}
   update(dt,mission,player) {
-    this.active=mission.phase==='escape';this.group.visible=this.active;
+    this.active=['errand','phone','escape'].includes(mission.phase);this.group.visible=this.active;
     if(!this.active || mission.paused)return;
+    if(mission.phase!=='escape') {
+      const t=mission.phase==='phone'?5:mission.time;
+      this.carA.visible=this.carB.visible=true;this.carA.position.set(5,0,this.config.spawn.z+36-Math.min(t,30)*7);this.carA.rotation.y=Math.PI;
+      this.carB.position.set(8,0,this.config.hospital.z+65);this.carB.rotation.y=.25;
+      this.police.visible=t>=3;this.police.position.set(-4,0,this.config.hospital.z-100+Math.min(t,20)*9);this.police.rotation.y=0;
+      this.police.userData.lights.forEach((m,i)=>m.visible=Math.floor(t*8)%2===i);
+      this.pileups.forEach(p=>{p.a.visible=p.b.visible=false;});this.officers.forEach(o=>o.visible=false);
+      this.flames.forEach(f=>f.mesh.visible=false);this.smoke.forEach(s=>s.mesh.visible=false);this.fireLights.forEach(l=>l.intensity=0);return;
+    }
     this.time=mission.time;
     const t=this.time,impactZ=this.sites[0].z;
     // Bounded directed collision: two cars approach and remain wrecked after impact.
@@ -53,6 +65,13 @@ export class OutbreakIncidents {
     this.police.visible=t>=7;
     this.police.position.set(-4,0,impactZ+Math.max(17,140-Math.max(0,t-7)*13));
     this.police.rotation.y=Math.PI;
+    for(const {site,a,b} of this.pileups){
+      const elapsed=t-site.start,gap=Math.max(0,-elapsed*12);a.visible=b.visible=elapsed>=-3;
+      a.position.set(site.x,0,site.z+gap);b.position.set(site.x+gap+2,0,site.z-2);
+      a.rotation.y=elapsed>=0?.7:Math.PI;b.rotation.y=elapsed>=0?-1.2:-Math.PI/2;
+    }
+    const burning=this.sites.filter(s=>t>=s.start).sort((a,b)=>Math.hypot(a.x-player.x,a.z-player.z)-Math.hypot(b.x-player.x,b.z-player.z));
+    this.fireLights.forEach((light,i)=>{const s=burning[i];light.intensity=s?45+Math.sin(t*9+i)*12:0;if(s)light.position.set(s.x,2.5,s.z);});
     this.officers.forEach((officer,i)=>{
       officer.visible=t>=17;
       const exit=Math.min(1,Math.max(0,t-17)/3);
@@ -61,15 +80,15 @@ export class OutbreakIncidents {
     });
     this.police.userData.lights.forEach((m,i)=>m.visible=Math.floor(t*8)%2===i);
     for(const {mesh,site,i} of this.flames) {
-      mesh.visible=this.crashed;const phase=t*7+i*2;
-      mesh.position.set(site.x+Math.sin(i*3)*1.2,1.3+Math.sin(phase)*.25,site.z+Math.cos(i*3)*1.1);
+      mesh.visible=t>=site.start;const phase=t*7+i*2;
+      mesh.position.set(site.x+Math.sin(i*3)*1.2,2.1+Math.sin(phase)*.5,site.z+Math.cos(i*3)*1.1);
       mesh.scale.set(1+.2*Math.sin(phase),.7+.5*Math.abs(Math.sin(phase)),1);
     }
     for(const {mesh,site,i} of this.smoke) {
-      mesh.visible=this.crashed;const age=(t*.45+i/6)%1;
-      mesh.position.set(site.x+age*5,3+age*14,site.z+age*2);mesh.scale.setScalar(.7+age*2);
+      mesh.visible=t>=site.start;const age=(t*.45+i/6)%1;
+      mesh.position.set(site.x+age*5,4+age*20,site.z+age*2);mesh.scale.setScalar(.9+age*2.7);
     }
     // Wrecks and flames are dangerous to touch, rather than decorative safe spots.
-    if(this.crashed && this.sites.some(s=>Math.hypot(s.x-player.x,s.z-player.z)<2.5))mission.hurt();
+    if(this.crashed && this.sites.some(s=>t>=s.start && Math.hypot(s.x-player.x,s.z-player.z)<3))mission.hurt();
   }
 }

@@ -6,12 +6,14 @@ import { OutbreakView } from './view.js';
 import { OutbreakSound } from './sound.js';
 import { OutbreakIncidents } from './incidents.js';
 import { TVIntroduction } from './tv-introduction.js';
+import { PhoneSequence } from './phone-sequence.js';
 
 export class OutbreakGame {
   constructor({ scene, controller, camera, colliders, audio, onQuality = () => {} }) {
     this.controller = controller; this.camera = camera; this.audio = audio;
     this.sound = new OutbreakSound(audio);
     this.intro = new TVIntroduction();
+    this.phone = new PhoneSequence(scene,camera);
     this.nav = new NavigationGrid(MANHATTAN.bounds, colliders);
     // Resolve authored waypoints against actual buildings, rather than assuming empty sidewalks.
     this.config = { ...MANHATTAN };
@@ -25,6 +27,11 @@ export class OutbreakGame {
     for (const key of ['spawn', 'hospital']) {
       if (this.civilianNav.cost[this.civilianNav.index(this.config[key])] < 0) throw new Error(`Disconnected mission waypoint: ${key}`);
     }
+    this.escapeRoutes=[{nav:this.civilianNav,goal:this.config.shelter}];
+    for(const [x,z] of [[-340,-165],[160,-245],[-340,-403],[160,-85]]) {
+      const nav=new NavigationGrid(MANHATTAN.bounds,colliders),goal=nav.nearest({x,z},30);
+      if(goal){nav.flood(goal);this.escapeRoutes.push({nav,goal});}
+    }
     this.mission = new Mission(this.config);
     this.incidents = new OutbreakIncidents(scene,this.config);
     this.actors = new OutbreakActors(scene, this.nav, controller, this.config);
@@ -32,7 +39,7 @@ export class OutbreakGame {
     this.hospital = this.createMarker(this.config.hospital, 0xe5b45a);
     this.radio = this.createMarker(this.config.radio, 0x68b8ea);
     this.shelter = this.createMarker(this.config.shelter, 0x73e0ad);
-    this.view = new OutbreakView({ onQuality, onStart: () => this.start(), onSkip: () => this.mission.skipIntro(),
+    this.view = new OutbreakView({ onAnswer: () => this.mission.answerPhone(), onQuality, onStart: () => this.start(), onSkip: () => this.mission.skipIntro(),
       onPause: () => this.pause(), onLanguage: () => this.updateSigns(), onSound: () => audio.setEnabled(!audio.enabled) });
     this.updateSigns();
     controller.setMode('person'); controller.teleportActiveTo(this.config.spawn.x, this.config.spawn.z, this.config.spawn.heading);
@@ -41,6 +48,7 @@ export class OutbreakGame {
     document.body.classList.add('outbreak-mode');
     // Capture prevents explorer shortcuts (teleports, vehicles, free camera) during a mission.
     window.addEventListener('keydown', (e) => {
+      if(e.code==='KeyF' && this.mission.phase==='phone'){this.mission.answerPhone();e.preventDefault();return;}
       if(e.code==='KeyF' && !e.target.closest?.('select,input')) {this.interacting=true;e.preventDefault();return;}
       if (e.code === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); if (!e.repeat) this.pause(); return; }
       if (e.target.closest?.('select,button,input')) return;
@@ -101,7 +109,7 @@ export class OutbreakGame {
     const previous = m.phase;
     m.tick(dt, player.position, this.controller.keys.boost && Math.abs(player.speed) > 1, this.interacting);
     if (previous !== 'escape' && m.phase === 'escape') this.actors.spawn();
-    if (m.playing) this.actors.update(dt, player, m, this.civilianNav);
+    if (m.playing) this.actors.update(dt, player, m, this.civilianNav, this.escapeRoutes);
     this.incidents.update(dt,m,player.position);
     this.sound.update(dt, m, this.actors.actors, player.position, this.incidents);
     if (previous !== m.phase) { this.controller.resetInput(); this.render(); }
@@ -117,7 +125,7 @@ export class OutbreakGame {
   render() {
     if (!this.view) return;
     const m = this.mission, target = m.phase === 'escape' ? (m.radioReady ? this.config.shelter : this.config.radio) : this.config.hospital;
-    let feed = m.time < 12 ? 'call0' : m.time < 24 ? 'call1' : 'ready';
+    let feed = m.phase==='phone' ? (m.phoneAnswered ? (m.time<6?'call0':'call1') : 'phoneIncoming') : 'ready';
     if (m.phase === 'errand' && distance(this.controller.entities.person.position, this.config.hospital) < 20 && m.time < 24) feed = 'waiting';
     if (m.phase === 'escape') feed = m.time < 9 ? 'call2' : m.time < 23 ? 'cut' : 'emergency';
     const nearest=Math.min(999,...this.actors.actors.filter(a=>a.state==='zombie').map(a=>distance(a,this.controller.entities.person.position)));

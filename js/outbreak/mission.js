@@ -16,7 +16,7 @@ export const MANHATTAN = {
   maxStamina: 100,
   attackDamage: 14,
   attackCooldown: 1.2,
-  zombieSpeed: 2.15,
+  zombieSpeed: 2.55,
   zombieCount: 12,
   reinforcementCount: 16,
   civilianCount: 40,
@@ -29,12 +29,14 @@ export class Mission {
   reset() {
     this.phase = 'menu'; this.time = 0; this.health = this.config.maxHealth;
     this.stamina = this.config.maxStamina; this.hurtCooldown = 0;
+    this.phoneAnswered=false;this.callComplete=false;
     this.radioReady = false; this.radioProgress = 0;
     this.paused = false; this.exhausted = false;
   }
   start() { this.reset(); this.phase = 'intro'; }
   get playing() { return ['errand', 'escape'].includes(this.phase) && !this.paused; }
   skipIntro() { if (this.phase === 'intro') { this.phase = 'errand'; this.time = 0; } }
+  answerPhone() { if(this.phase==='phone' && !this.phoneAnswered){this.phoneAnswered=true;this.time=0;} }
   tick(dt, position, wantsSprint = false, interacting = false) {
     if (this.paused || ['menu', 'won', 'lost'].includes(this.phase)) return;
     this.time += dt;
@@ -43,6 +45,8 @@ export class Mission {
       if (this.time >= this.config.introSeconds) this.skipIntro();
       return;
     }
+    if(this.phase==='phone'){if(this.phoneAnswered && this.time>=12){this.phase='errand';this.time=this.config.callSeconds;this.callComplete=true;}return;}
+    if(this.phase==='errand' && !this.callComplete && this.time>=5){this.phase='phone';this.time=0;return;}
     if (this.exhausted && this.stamina >= 25) this.exhausted = false;
     const sprinting = wantsSprint && !this.exhausted && this.stamina > 0;
     this.stamina = Math.max(0, Math.min(this.config.maxStamina, this.stamina + dt * (sprinting ? -19 : 11)));
