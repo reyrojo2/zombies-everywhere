@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Slop New York</title>
+  <title>Zombies Everywhere — Before the silence</title>
   <link rel="icon" href="data:," />
   <meta name="description" content="Photorealistic GTA-style 3D Slop New York simulation built with Three.js WebGPURenderer and TSL shaders featuring complete Manhattan street map (125th St to Battery Park), third-person navigation (Person, Car, Cyclist, Helicopter), and 11 cinematic cameras at 60 FPS." />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
@@ -50,12 +50,26 @@
   <link rel="modulepreload" href="./js/audio-acoustics.js" />
   <link rel="modulepreload" href="./js/audio-system.js" />
   <link rel="modulepreload" href="./js/main.js" />
+  <link rel="modulepreload" href="./js/outbreak/game.js" />
+  <link rel="modulepreload" href="./js/outbreak/mission.js" />
+  <link rel="modulepreload" href="./js/outbreak/navigation.js" />
+  <link rel="modulepreload" href="./js/outbreak/actors.js" />
+  <link rel="modulepreload" href="./js/outbreak/view.js" />
+  <link rel="modulepreload" href="./js/outbreak/locales.js" />
+  <link rel="modulepreload" href="./js/outbreak/population.js" />
+  <link rel="modulepreload" href="./js/outbreak/zombie-model.js" />
+  <link rel="modulepreload" href="./js/outbreak/sound.js" />
+  <link rel="modulepreload" href="./js/outbreak/sector.js" />
+  <link rel="modulepreload" href="./js/outbreak/incidents.js" />
+  <link rel="modulepreload" href="./js/outbreak/tv-introduction.js" />
+  <link rel="modulepreload" href="./js/outbreak/phone-sequence.js" />
   <script type="module" src="./js/main.js"></script>
   <!-- Inter (UI) & Overpass (street-name signs: modelled on Highway Gothic, the US road sign typeface) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&amp;family=Overpass:wght@600;700&amp;display=swap" />
   <link rel="stylesheet" href="./css/style.css?v=20261022-repo-link" />
+  <link rel="stylesheet" href="./css/outbreak.css" />
 </head>
 <body>
   <!-- Icon sprite (24 × 24 stroke icons, drawn in currentColor) -->
@@ -91,8 +105,8 @@
   <!-- Loading Screen -->
   <div id="loading-overlay" role="status" aria-live="polite">
     <div class="loader">
-      <span class="mta-bullet loader-bullet" aria-hidden="true">NY</span>
-      <div class="loader-title">Slop New York</div>
+      <span class="mta-bullet loader-bullet" aria-hidden="true">ZE</span>
+      <div class="loader-title">Zombies Everywhere</div>
       <div class="loader-track is-indeterminate" aria-hidden="true"><span id="loading-progress" class="loader-fill"></span></div>
       <div id="loading-status">Initializing WebGPURenderer &amp; TSL Shaders...</div>
     </div>
@@ -104,7 +118,7 @@
   <!-- Top-Left: Brand & Renderer Telemetry -->
   <header class="hud hud-top-left">
     <div class="panel brand">
-      <span class="mta-bullet" aria-hidden="true">NY</span>
+      <span class="mta-bullet" aria-hidden="true">ZE</span>
       <div class="brand-titles">
         <div class="brand-heading">
           <h1>Slop New York</h1>
@@ -265,7 +279,7 @@
 
     <div class="fullmap-header">
       <div class="panel fullmap-title">
-        <span class="mta-bullet" aria-hidden="true">NY</span>
+        <span class="mta-bullet" aria-hidden="true">ZE</span>
         <div>
           <h2>Manhattan Street Atlas</h2>
           <p id="fullmap-player-info" class="fullmap-subtitle">You are at 5th Ave &amp; 35th St</p>

@@ -74,7 +74,10 @@ function createBusDestinationTexture() {
 
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 
-function createTrafficSystem(scene, sidewalks, obstacles) {
+function createTrafficSystem(scene, sidewalks, obstacles, population = {}) {
+  const NUM_CARS = population.cars ?? 200;
+  const NUM_BUSES = population.buses ?? 12;
+  const NUM_PEDS = population.pedestrians ?? 340;
   const group = new THREE.Group();
   group.name = 'ManhattanTrafficAndPedestrians';
   let collisionListener = null;
@@ -223,7 +226,18 @@ function createTrafficSystem(scene, sidewalks, obstacles) {
     const lodMesh = (g) => {
       g.setAttribute('paintColor', new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3));
       g.setAttribute('carState', new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4));
-      return new THREE.InstancedMesh(g, mat, n);
+      let bodyMaterial=mat;
+      if(population.fixedPaint) {
+        const paint=kind==='taxi'?0xffc526:kind==='suv'?0x7d3b39:0x748ea3;
+        const parts=g.getAttribute('partId'),colors=new Float32Array(g.getAttribute('position').count*3),c=new THREE.Color();
+        for(let i=0;i<colors.length/3;i++) {
+          const id=parts?Math.round(parts.getX(i)):0;
+          c.setHex(id===1?0x354e60:id===2||id===4?0x20252b:id===3?0xaeb9c1:id===6?0xffcc55:paint);c.toArray(colors,i*3);
+        }
+        g.setAttribute('color',new THREE.BufferAttribute(colors,3));
+        bodyMaterial=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.6,metalness:.15,side:THREE.DoubleSide});
+      }
+      const mesh=new THREE.InstancedMesh(g,bodyMaterial,n);mesh.name='TrafficBody_'+kind;return mesh;
     };
     bodies[kind] = { near: lodMesh(geo), far: lodMesh(buildCarProxyGeometry(BODY_SPECS[kind])) };
   }
@@ -266,6 +280,7 @@ function createTrafficSystem(scene, sidewalks, obstacles) {
   // NYPD roof light bars (the blue & white livery is painted by the sedan material from the instance's carState)
   const policeLightbarInst = new THREE.InstancedMesh(buildLightbarGeometry(BODY_SPECS.sedan), createLightbarMaterial(), Math.max(1, policeCount));
   const carShadowInst = new THREE.InstancedMesh(unitPlane, contactShadowMat, NUM_CARS);
+  carShadowInst.name = 'TrafficContactShadows';
   carShadowInst.renderOrder = 998;
 
   for (const m of bodyMeshes) m.castShadow = m.receiveShadow = true;
@@ -304,6 +319,7 @@ function createTrafficSystem(scene, sidewalks, obstacles) {
   const busShadowInst = new THREE.InstancedMesh(unitPlane, contactShadowMat, NUM_BUSES);
   busShadowInst.renderOrder = 998;
 
+  busBodyInst.name = 'TrafficBusBody';
   busBodyInst.castShadow = busBodyInst.receiveShadow = true;
   busWheelLeftInst.castShadow = busWheelLeftInst.receiveShadow = true;
   busWheelRightInst.castShadow = busWheelRightInst.receiveShadow = true;
@@ -318,7 +334,7 @@ function createTrafficSystem(scene, sidewalks, obstacles) {
   // =========================================================================
   // One instanced draw per level of detail; every pedestrian has a PersonRig that plants its footsteps on the
   // sidewalk (no sliding), with their own build, height, sex, hair, clothes and gait
-  const pedCrowd = new PersonCrowd(NUM_PEDS);
+  const pedCrowd = new PersonCrowd(Math.max(1, NUM_PEDS));
   const hash = (i, salt) => {
     const v = Math.sin(i * 12.9898 + salt * 78.233) * 43758.5453;
     return v - Math.floor(v);
