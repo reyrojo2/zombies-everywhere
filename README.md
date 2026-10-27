@@ -19,9 +19,9 @@ python -m http.server 8000
 Abre **http://localhost:8000** en un navegador de escritorio con aceleración gráfica. No abras `index.html` directamente con `file://`. No hay instalación del juego, cuentas ni servidor de partidas. Hace falta conexión para descargar Three.js y otros recursos externos; el primer arranque puede tardar por la construcción de Manhattan y sus shaders.
 
 1. Selecciona Español o English y pulsa **Comenzar historia**.
-2. Mira el informativo animado en un televisor dentro de una sala 3D (42 segundos), o pulsa **Salir a la calle**. La cámara se acerca a la pantalla; la emisión cambia de fecha, mueve al presentador y muestra un hospital con luces de emergencia. Es animación procedural, no una grabación periodística real.
-3. Camina hacia la farmacia. A los pocos segundos se levanta el celular con una alerta sanitaria y la llamada de **Esposa**. Pulsa **Contestar** o **F**. La secuencia vuelve a la calle al terminar el primer diálogo; el nombre propio anterior se ha eliminado.
-4. Cuando empieza el brote, busca la patrulla. Tras su llegada (17 segundos), mantén **F durante 3 segundos** junto a la radio para pedir acceso al refugio. Después sigue el marcador verde. Los personajes de piel gris verdosa y ropa oscura son zombis; en el minimapa aparecen en rojo, los civiles en azul y las personas contagiadas en ámbar.
+2. Mira el informativo en una sala 3D: el residente está frente a la TV, se levanta, abre la puerta y sale (48 s, con opción de saltar). Tres boletines contextualizan hospital, reportes en China y alerta local en West Village. Son ilustraciones animadas procedurales, no vídeo real.
+3. Al salir ya hay vecinos; algunos huyen antes de que se declare el brote. La llamada de **Esposa** aparece a los cinco segundos. **F** o **Contestar** responde sin detener el movimiento; el celular baja en 1,5 s y la conversación sigue en segundo plano con subtítulos.
+4. El peligro progresa aunque no llegues al hospital ni contestes. Puedes tomar calles laterales. Busca la patrulla y mantén **F durante 3 s** junto a la radio; después elige entre dos refugios. Los infectados aparecen en rojo en el minimapa y los contagiados en ámbar.
 5. Si pierdes toda la salud, puedes reiniciar. Llegar al refugio termina esta primera misión.
 
 | Control | Acción |
@@ -38,20 +38,23 @@ La partida también se pausa al cambiar de pestaña o perder el foco. El idioma 
 
 ### Alcance de esta entrega
 
-- Manhattan, sector jugable delimitado con 500 manzanas de entorno; informativo animado sobre una TV 3D y llamada mediante texto, sin doblaje.
-- Centro médico y refugio señalizados en el exterior; no hay interiores de hospital o apartamento.
-- Doce zombis iniciales con marcha rápida (2,55–2,71 m/s), sin carrera y 40 peatones de misión. Los civiles están distribuidos en varios grupos y huyen hacia cinco salidas: norte, dos al este y dos al oeste. Usan velocidades individuales y separación local para evitar una fila única; si una salida no es navegable, recurren a una ruta conectada. Algunos zombis cazadores priorizan al protagonista hasta 120 metros, sin abandonar una víctima a distancia de mordida. Los otros eligen entre el jugador y civiles cercanos. El trayecto previo ya incluye vehículos detenidos y una patrulla que pasa con luces, antes del brote.
-- Un ataque a corta distancia contagia al peatón: 6 segundos herido, 2 segundos de transformación y después se convierte en un zombi. El proceso está identificado por el color ámbar en el minimapa y un contador de contagios. Las paredes bloquean el contacto; los refugiados están a salvo. El total de actores nunca aumenta por el contagio. Hay hasta cuatro entradas adicionales de cuatro zombis por las calles 44 a 47, con separación mínima de 22 metros respecto al jugador y un máximo de 68 actores contando los refuerzos.
-- Apariencia de zombi propia con piel gris verdosa, ropa oscura, heridas, inclinación corporal, brazos adelantados y paso lento. Modelos procedurales sencillos dibujados mediante instancias compartidas.
-- El brote activa la huida de todos los civiles de misión, cuatro choques dirigidos (ocho vehículos), la llegada de una patrulla con dos agentes, seis focos de incendio y humo que se activan a los 3, 8, 13, 18, 23 y 28 segundos y una transición al anochecer. Estos incidentes usan el reloj de misión y se congelan durante la pausa; no son una simulación física completa de accidentes o propagación de fuego. Acercarse a los focos de incendio causa daño.
-- Gruñidos mediante tres grabaciones vocales CC0 de artisticdude, incluidas localmente (unos 20 KB en total). Se decodifican tras activar el audio y alternan con ligeras variaciones. Procedencia, licencia y conversión en [assets/audio/CREDITS.md](assets/audio/CREDITS.md). La TV alterna estudio y tomas ampliadas cada cinco segundos; sus tres boletines muestran hospital/ambulancia, imágenes urbanas no verificadas y un mapa internacional. Una sintonía real de noticias, **Beyond The Clouds** de **Matthew Pablo** (CC BY 3.0, extracto con atribución en el menú), acompaña la introducción. Durante la huida suenan gritos **CC0 de WuxiaScrub**. Todos los archivos están incluidos localmente. Teléfono, sirenas, impacto y ruido ambiental siguen siendo sintetizados. No hay doblaje de noticias o diálogos. Se conservan mute, pausa y límite de voces.
+- West Village, con calles reales irregulares y los perfiles de viviendas/bloques bajos del generador original. El contexto visual ya no parte del corredor de torres de Midtown. La arquitectura sigue siendo procedural, no una reproducción de cada fachada.
+- Apartamento animado para la introducción; no es un interior explorable. Centro médico, farmacia y refugios son ubicaciones ficticias exteriores.
+- 104 civiles en ocho áreas, con reacciones individuales, rutas de huida distintas, separación local y reutilización de residentes fuera de la proximidad del jugador. El dibujo de civiles se limita a 220 m. Hasta 12 infectados iniciales introducidos por etapas y 16 refuerzos posteriores; máximo 132 actores. El contagio convierte al mismo actor, sin crear entidades.
+- Primeros huidos desde los 2 s. Semillas de infección a los 9, 18 y 30 s. El brote se declara cerca del hospital después de 22 s, o a los 42 s en cualquier lugar. No depende de completar la llamada ni de recorrer una recta obligatoria.
+- Cuatro choques dirigidos y seis incendios: 10, 23, 38, 52, 68 y 85 s desde que sales a la calle. Sirenas, gritos y patrulla aparecen durante el trayecto. No hay cambio repentino de hora ni congelación del tráfico al declararse el brote. Los incidentes no simulan física completa ni propagación de fuego.
+- Marcha de infectados a 2,55–2,71 m/s; persecución y contagio por contacto con obstáculos estáticos. Incubación 6 s y transformación 2 s.
+- Las huellas de acera usan la cobertura por lotes del proyecto original en manzanas irregulares. Usar el rectángulo exterior completo cerraba calles diagonales y dejaba sin sitios de aparición al tráfico.
+- Carrocerías de misión con geometría detallada original y material estándar opaco, colores por pieza y doble cara, en ambos niveles de detalle. Sustituye el shader procedural de carrocería en la misión; el explorador lo conserva.
+- Noticias y llamada leídas con **SpeechSynthesis**, usando voces españolas/inglesas disponibles en el navegador/sistema. No hay doblaje humano grabado; sin voces compatibles se mantienen los subtítulos. Cambiar idioma selecciona la voz correspondiente; pausa, mute y reinicio cancelan la lectura. La calidad de voz depende del equipo.
+- Tres grabaciones de gruñidos CC0 de artisticdude y gritos CC0 de WuxiaScrub. Cortina musical breve **Beyond The Clouds**, Matthew Pablo, CC BY 3.0: se usa en los cambios de boletín a volumen bajo, en lugar de un bucle continuo. Los archivos están incluidos localmente y sus licencias figuran en [assets/audio/CREDITS.md](assets/audio/CREDITS.md). Teléfono, sirenas e impactos sintetizados.
 - Salud, resistencia, navegación, pausa, victoria, derrota y reinicio.
 - Interfaz y narrativa en español e inglés. Los nombres propios permanecen.
 - **Sin armas todavía**: este episodio prueba la huida. El arma, el regreso a casa y la búsqueda completa de tu esposa son la siguiente entrega.
 - **Lima está anunciada, pero no es seleccionable todavía.** Tendrá un escenario y una disponibilidad de armas propios.
 - Objetivo de soporte inicial: PC, teclado y ratón; no se ha implementado el modo de supervivencia para móvil o mando.
 
-En la misión se sustituye la multitud ambiental original por los 40 civiles del brote, todos susceptibles al contagio. El tráfico se reduce de 200 autos y 12 buses a 24 autos y 2 buses; se desactiva el tráfico de autopistas. El explorador conserva su población original. La navegación de infectados usa obstáculos estáticos y no simula interiores, escaleras ni evasión de vehículos en movimiento.
+En la misión se sustituye la multitud ambiental original por los 104 civiles del barrio, todos susceptibles al contagio. El tráfico se reduce de 200 autos y 12 buses a 24 autos y 2 buses; se desactiva el tráfico de autopistas. El explorador conserva su población original. La navegación de infectados usa obstáculos estáticos y no simula interiores, escaleras ni evasión de vehículos en movimiento.
 
 El explorador original sigue disponible con **http://localhost:8000/?mode=explore**. Conserva sus menús originales en inglés, vehículos y teletransportes. Estos accesos están deshabilitados en la misión.
 
@@ -65,11 +68,11 @@ El selector aplica la calidad en el momento: mantiene la misión, la salud, el c
 | Equilibrado (predeterminado) | 80% por eje | Sin sombras, reflejos SSR ni bloom |
 | Cinemático | 100% por eje | Sombras, reflejos SSR, bloom y tratamiento de color originales |
 
-La misión selecciona exactamente las 500 manzanas más cercanas al centro del recorrido, con sus edificios originales. Restaura los monumentos dentro de ese entorno, incluida la Biblioteca Pública de Nueva York y su relación con Bryant Park. Las aceras son losas extruidas de 22 cm con textura de concreto, juntas y caras de bordillo; ya no se pinta de verde todo un bloque clasificado como parque. Las losas se agrupan por celdas de 200 m para reducir llamadas de dibujo.
+La misión selecciona exactamente las 500 manzanas más cercanas al centro del recorrido, con sus edificios originales. Restaura los monumentos dentro de ese entorno, centrados ahora en West Village. Las aceras son losas extruidas de 22 cm con textura de concreto, juntas y caras de bordillo; ya no se pinta de verde todo un bloque clasificado como parque. Las losas se agrupan por celdas de 200 m para reducir llamadas de dibujo.
 
 Las 500 manzanas permanecen residentes; la cámara y el culling por frustum/celdas limitan lo que se dibuja. El detalle arquitectónico cercano sigue usando el quadtree del proyecto original. Alcance de cámara: 350 m en Rendimiento, 550 m en Equilibrado y 850 m en Cinemático. No es streaming infinito ni descarga dinámica de edificios. La generación inicial y la primera compilación de efectos pueden tardar, especialmente en Cinemático.
 
-El selector mantiene la partida. Activar Cinemático puede compilar por primera vez sus sombras/reflejos. El mapa geográfico compartido y el grafo de tráfico siguen cargándose. El máximo de población es de 68 actores; el contagio reutiliza al civil. No se garantiza una tasa de FPS sin medir el equipo objetivo.
+El selector mantiene la partida. Activar Cinemático puede compilar por primera vez sus sombras/reflejos. El mapa geográfico compartido y el grafo de tráfico siguen cargándose. El máximo de población es de 132 actores; el contagio reutiliza al civil. No se garantiza una tasa de FPS sin medir el equipo objetivo.
 
 ### Estructura
 
@@ -80,7 +83,7 @@ El selector mantiene la partida. Activar Cinemático puede compilar por primera 
 | `js/outbreak/actors.js` | Movimiento y presentación de la población |
 | `js/outbreak/sector.js` | Selección de 500 manzanas, aceras y agrupación espacial |
 | `js/outbreak/tv-introduction.js` | Sala, televisor 3D y planos variables de la emisión |
-| `js/outbreak/phone-sequence.js` | Celular 3D, notificación, llamada entrante y transición de cámara |
+| `js/outbreak/phone-sequence.js` | Celular 3D, llamada entrante y bajada del teléfono sin bloquear control |
 | `js/outbreak/incidents.js` | Choque, patrulla, agentes, fuego y humo dirigidos |
 | `js/outbreak/population.js` | Detección, objetivos, ataques e incubación del contagio |
 | `js/outbreak/zombie-model.js` | Modelos procedurales de zombis con instancias compartidas |

@@ -700,14 +700,14 @@ async function initApp() {
     if (!outbreak || outbreak.beforeUpdate(dt)) controllerManager.update(dt, elapsed);
     if (outbreak) {
       outbreak.update(dt);
-      if(outbreak.mission.phase==='escape' && !outbreak.atmosphere) {selectTime('twilight');outbreak.atmosphere=true;}
+      if(outbreak.mission.phase==='escape' && !outbreak.atmosphere) outbreak.atmosphere=true;
       if(outbreak.mission.phase==='intro' && outbreak.atmosphere) {selectTime('golden');outbreak.atmosphere=false;}
     }
     cameraSystem.update(dt, elapsed);
     if(outbreak)outbreak.phone.update(outbreak.mission,k=>outbreak.view.t(k));
     streetDetails.signalClock.value = elapsed;
     trafficSystem.update(
-      outbreak && (!outbreak.mission.playing || outbreak.mission.phase === 'escape') ? 0 : dt,
+      outbreak && !outbreak.mission.playing ? 0 : dt,
       elapsed,
       cameraSystem.currentPos,
       controllerManager.getActiveEntity(),

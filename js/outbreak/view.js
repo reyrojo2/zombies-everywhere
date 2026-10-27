@@ -59,7 +59,7 @@ export class OutbreakView {
     this.$('.ze-map').hidden = !mission.playing;
     this.$('.ze-feed').hidden = !mission.playing && phase!=='phone';
     this.$('.ze-phone-answer').hidden = phase!=='phone' || mission.phoneAnswered || mission.paused;
-    this.$('.ze-controls').hidden = screen || phase === 'intro' || phase==='phone';
+    this.$('.ze-controls').hidden = screen || phase === 'intro';
     this.$('.ze-pause').hidden = phase === 'menu' || terminal;
     this.$('.ze-pause').textContent = this.t(mission.paused ? 'resume' : 'pause');
     this.$('.ze-sound').textContent = `${this.t('sound')}: ${this.t(sound ? 'on' : 'off')}`;
@@ -79,7 +79,7 @@ export class OutbreakView {
     if (this.$('.ze-feed-text').textContent !== text) this.$('.ze-feed-text').textContent = text;
     this.$('.ze-feed-label').textContent = this.t(feed === 'emergency' ? 'news' : 'call');
     const bulletin = Math.min(2, Math.floor(mission.time / (mission.config.introSeconds / 3)));
-    this.$('.ze-bulletin').textContent = this.t(`bulletin${bulletin}`);
+    this.$('.ze-bulletin').textContent = this.t(mission.time>=42?'leaving':`bulletin${bulletin}`);
     this.$('.ze-timeline i').style.width = `${Math.min(100, mission.time / mission.config.introSeconds * 100)}%`;
   }
   drawMap(nav, player, actors, target) {
@@ -97,6 +97,7 @@ export class OutbreakView {
     ctx.drawImage(this.mapBase, 0, 0);
     const dot = (p, color, radius) => { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x(p.x), z(p.z), radius, 0, Math.PI * 2); ctx.fill(); };
     for (const a of actors) if (!a.sheltered) dot(a, ['bitten','turning'].includes(a.state) ? '#e5b45a' : a.civilian ? '#58c9ff' : '#ff554e', 2.5);
+    if(this.last?.radioReady)for(const p of this.last.config.shelters || [])dot(p,'#73e0ad',5);
     dot(target, '#e5b45a', 5); dot(player.position, '#fff', 4);
     ctx.strokeStyle = '#fff'; ctx.beginPath(); ctx.moveTo(x(player.position.x), z(player.position.z));
     ctx.lineTo(x(player.position.x) + Math.sin(player.heading) * 10, z(player.position.z) + Math.cos(player.heading) * 10); ctx.stroke();

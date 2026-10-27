@@ -4,17 +4,13 @@ import { Mission, MANHATTAN } from '../js/outbreak/mission.js';
 import { NavigationGrid } from '../js/outbreak/navigation.js';
 import { MESSAGES, getLanguage } from '../js/outbreak/locales.js';
 
-test('intro, hospital proximity AND finished call gate the outbreak; shelter ends it', () => {
-  const m = new Mission(MANHATTAN); m.start();
-  m.tick(42, MANHATTAN.hospital); assert.equal(m.phase, 'errand');
-  m.tick(10, MANHATTAN.hospital); assert.equal(m.phase, 'phone');
-  m.answerPhone();m.tick(12,MANHATTAN.hospital);assert.equal(m.phase,'errand');
-  m.tick(15, MANHATTAN.spawn); assert.equal(m.phase, 'errand');
-  m.tick(0.1, MANHATTAN.hospital); assert.equal(m.phase, 'escape');
-  m.tick(1, MANHATTAN.shelter); assert.equal(m.phase, 'escape');
-  m.tick(17, MANHATTAN.radio, false, true); assert.equal(m.radioReady,true);
-  m.tick(1, MANHATTAN.shelter); assert.equal(m.phase, 'won');
-  m.hurt(); assert.equal(m.health, 100);
+test('outbreak advances away from hospital and either refuge can finish the mission', () => {
+  const m=new Mission(MANHATTAN);m.start();m.tick(48,MANHATTAN.spawn);assert.equal(m.phase,'errand');
+  m.tick(5,MANHATTAN.spawn);assert.equal(m.phase,'phone');assert.equal(m.playing,true);
+  m.answerPhone();m.tick(20,MANHATTAN.spawn);assert.equal(m.callComplete,true);assert.equal(m.phase,'errand');
+  m.tick(17,MANHATTAN.spawn);assert.equal(m.phase,'escape');
+  m.tick(20,MANHATTAN.radio,false,true);assert.equal(m.radioReady,true);
+  m.tick(.1,MANHATTAN.shelters[1]);assert.equal(m.phase,'won');
 });
 
 test('pause freezes timers and damage; damage has shared invulnerability; restart clears state', () => {
@@ -99,7 +95,7 @@ test('nearby civilians flee; sheltered people are safe; inactive population cann
   p.add({ x: 5, z: 0 }, true);
   p.update(1, { x: 50, z: 0 }, () => true, () => {}); assert.equal(person.state, 'normal');
   p.activate();p.update(.25, { x: 50, z: 0 }, () => true, () => {});assert.equal(person.state, 'fleeing');
-  Object.assign(person, MANHATTAN.shelter);p.update(.25, { x: 50, z: 0 }, () => true, () => {});
+  person.sheltered=true;p.update(.25, { x: 50, z: 0 }, () => true, () => {});
   assert.equal(person.sheltered, true);assert.equal(p.infect(person), false);
   p.reset();assert.equal(p.infections, 0);assert.equal(p.actors.length, 0);
 });
@@ -151,13 +147,37 @@ test('hunters pursue the player instead of distant civilians, but can still bite
  hunter.x=1;p.update(.25,player,()=>true,()=>{});assert.equal(civilian.state,'bitten');
 });
 
-test('the incoming phone call freezes movement until answered and completes before the outbreak',()=>{
+test('phone runs in the background without resetting the street clock or blocking movement',()=>{
  const m=new Mission(MANHATTAN);m.start();m.skipIntro();
- m.tick(5,MANHATTAN.spawn);assert.equal(m.phase,'phone');assert.equal(m.playing,false);
- m.tick(30,MANHATTAN.hospital);assert.equal(m.phase,'phone');assert.equal(m.callComplete,false);
- m.answerPhone();assert.equal(m.time,0);assert.equal(m.phoneAnswered,true);
- m.paused=true;m.tick(20,MANHATTAN.hospital);assert.equal(m.time,0);
- m.paused=false;m.tick(12,MANHATTAN.spawn);assert.equal(m.phase,'errand');assert.equal(m.callComplete,true);
- m.tick(.1,MANHATTAN.hospital);assert.equal(m.phase,'escape');
- m.start();assert.equal(m.callComplete,false);assert.equal(m.phoneAnswered,false);
+ m.tick(5,MANHATTAN.spawn);assert.equal(m.phase,'phone');assert.equal(m.playing,true);
+ m.answerPhone();assert.equal(m.time,5);assert.equal(m.phoneAnswered,true);
+ m.tick(3,MANHATTAN.spawn,true);assert.ok(m.stamina<100);assert.equal(m.callTime,3);
+ m.paused=true;m.tick(20,MANHATTAN.hospital);assert.equal(m.callTime,3);assert.equal(m.streetTime,8);
+ m.paused=false;m.tick(17,MANHATTAN.spawn);assert.equal(m.phase,'errand');assert.equal(m.callComplete,true);
+ m.start();assert.equal(m.callComplete,false);assert.equal(m.streetTime,0);
+});
+
+test('ignoring a call never prevents the neighborhood outbreak',()=>{
+ const m=new Mission(MANHATTAN);m.start();m.skipIntro();m.tick(43,MANHATTAN.spawn);
+ assert.equal(m.phase,'escape');assert.equal(m.phoneAnswered,false);assert.equal(m.playing,true);
+});
+
+test('spoken bulletins are deduplicated and mute cancels the reading',()=>{
+ const oldSynthesis=globalThis.speechSynthesis,oldUtterance=globalThis.SpeechSynthesisUtterance;
+ const spoken=[];let cancelled=0;
+ globalThis.speechSynthesis={getVoices:()=>[{lang:'es-PE',name:'test'}],speak:u=>spoken.push(u),cancel:()=>cancelled++};
+ globalThis.SpeechSynthesisUtterance=class{constructor(text){this.text=text;}};
+ try{
+  const sound=new OutbreakSound({enabled:true,context:{state:'running'}});
+  sound.narrate('news0','Hospitales reportan incidentes','es');sound.narrate('news0','Hospitales reportan incidentes','es');
+  assert.equal(spoken.length,1);assert.equal(spoken[0].lang,'es-PE');
+  sound.narrate('wife0','Cuídate, por favor','es');assert.equal(spoken.length,2);
+  const before=cancelled;sound.audio.enabled=false;sound.update(.1,{phase:'phone'},[],{});assert.ok(cancelled>before);
+ }finally{globalThis.speechSynthesis=oldSynthesis;globalThis.SpeechSynthesisUtterance=oldUtterance;}
+});
+
+test('mission starts in the existing West Village residential profile',async()=>{
+ const {districtAt}=await import('../js/city-config.js');
+ assert.equal(districtAt(MANHATTAN.spawn.x,MANHATTAN.spawn.z),'west_village');
+ assert.ok(MANHATTAN.shelters.length>1);assert.ok(MANHATTAN.hospital.x!==MANHATTAN.spawn.x);
 });

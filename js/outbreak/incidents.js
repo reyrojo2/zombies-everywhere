@@ -1,5 +1,4 @@
 import * as THREE from 'three/webgpu';
-import { streetZ } from '../city-config.js';
 
 export class OutbreakIncidents {
   constructor(scene,config) {
@@ -9,8 +8,7 @@ export class OutbreakIncidents {
     this.flames=[];this.smoke=[];
     const fireMat=new THREE.MeshBasicMaterial({color:0xff671e,transparent:true,opacity:.85});
     const smokeMat=new THREE.MeshBasicMaterial({color:0x272a2c,transparent:true,opacity:.32,depthWrite:false});
-    this.sites=[{x:7,z:streetZ(45),start:3},{x:17,z:streetZ(46),start:8},{x:-34,z:streetZ(47),start:13},
-      {x:25,z:streetZ(44),start:18},{x:-50,z:streetZ(46),start:23},{x:12,z:streetZ(48),start:28}];
+    this.sites=config.fireSites;
     this.pileups=this.sites.slice(1,4).map((site,i)=>({site,a:this.car([0x476f86,0x767a54,0xa49a7c][i]),b:this.car([0x985847,0x626d76,0x76586b][i])}));
     this.fireLights=[new THREE.PointLight(0xff6e24,0,22),new THREE.PointLight(0xffa23d,0,22)];this.fireLights.forEach(l=>this.group.add(l));
     for(const site of this.sites) {
@@ -45,37 +43,30 @@ export class OutbreakIncidents {
   update(dt,mission,player) {
     this.active=['errand','phone','escape'].includes(mission.phase);this.group.visible=this.active;
     if(!this.active || mission.paused)return;
-    if(mission.phase!=='escape') {
-      const t=mission.phase==='phone'?5:mission.time;
-      this.carA.visible=this.carB.visible=true;this.carA.position.set(5,0,this.config.spawn.z+36-Math.min(t,30)*7);this.carA.rotation.y=Math.PI;
-      this.carB.position.set(8,0,this.config.hospital.z+65);this.carB.rotation.y=.25;
-      this.police.visible=t>=3;this.police.position.set(-4,0,this.config.hospital.z-100+Math.min(t,20)*9);this.police.rotation.y=0;
-      this.police.userData.lights.forEach((m,i)=>m.visible=Math.floor(t*8)%2===i);
-      this.pileups.forEach(p=>{p.a.visible=p.b.visible=false;});this.officers.forEach(o=>o.visible=false);
-      this.flames.forEach(f=>f.mesh.visible=false);this.smoke.forEach(s=>s.mesh.visible=false);this.fireLights.forEach(l=>l.intensity=0);return;
-    }
-    this.time=mission.time;
-    const t=this.time,impactZ=this.sites[0].z;
+    this.time=mission.streetTime ?? mission.time;
+    const t=this.time,site=this.sites[0],heading=site.heading??0,dx=Math.sin(heading),dz=Math.cos(heading),gap=Math.max(0,(site.start-t)*9);
     // Bounded directed collision: two cars approach and remain wrecked after impact.
-    this.crashed=t>=3;
-    this.carA.position.set(4,0,impactZ+Math.max(0,42-t*14));
-    this.carB.position.set(6,0,impactZ-Math.max(0,42-t*14)-3);
-    this.carA.rotation.y=this.crashed ? .65 : Math.PI;
-    this.carB.rotation.y=this.crashed?-1.1:0;
+    this.crashed=t>=this.sites[0].start;
+    this.carA.visible=this.carB.visible=true;
+    this.carA.position.set(site.x+dx*gap,0,site.z+dz*gap);
+    this.carB.position.set(site.x-dx*(gap+3)+dz*2,0,site.z-dz*(gap+3)-dx*2);
+    this.carA.rotation.y=heading+(this.crashed?.65:Math.PI);
+    this.carB.rotation.y=heading+(this.crashed?-1.1:0);
     this.police.visible=t>=7;
-    this.police.position.set(-4,0,impactZ+Math.max(17,140-Math.max(0,t-7)*13));
+    const radio=this.config.radio;
+    this.police.position.set(radio.x,0,radio.z+Math.max(0,100-Math.max(0,t-7)*10));
     this.police.rotation.y=Math.PI;
     for(const {site,a,b} of this.pileups){
-      const elapsed=t-site.start,gap=Math.max(0,-elapsed*12);a.visible=b.visible=elapsed>=-3;
-      a.position.set(site.x,0,site.z+gap);b.position.set(site.x+gap+2,0,site.z-2);
-      a.rotation.y=elapsed>=0?.7:Math.PI;b.rotation.y=elapsed>=0?-1.2:-Math.PI/2;
+      const elapsed=t-site.start,gap=Math.max(0,-elapsed*12),h=site.heading??0,dx=Math.sin(h),dz=Math.cos(h);a.visible=b.visible=elapsed>=-3;
+      a.position.set(site.x+dx*gap,0,site.z+dz*gap);b.position.set(site.x-dx*(gap+2)+dz*2,0,site.z-dz*(gap+2)-dx*2);
+      a.rotation.y=h+(elapsed>=0?.7:Math.PI);b.rotation.y=h+(elapsed>=0?-1.2:0);
     }
     const burning=this.sites.filter(s=>t>=s.start).sort((a,b)=>Math.hypot(a.x-player.x,a.z-player.z)-Math.hypot(b.x-player.x,b.z-player.z));
     this.fireLights.forEach((light,i)=>{const s=burning[i];light.intensity=s?45+Math.sin(t*9+i)*12:0;if(s)light.position.set(s.x,2.5,s.z);});
     this.officers.forEach((officer,i)=>{
       officer.visible=t>=17;
       const exit=Math.min(1,Math.max(0,t-17)/3);
-      officer.position.set(-4-exit*(6+i*3),0,impactZ+17+exit*(4+i*3));
+      officer.position.set(radio.x-exit*(3+i*2),0,radio.z+exit*(4+i*2));
       officer.rotation.y=Math.PI;
     });
     this.police.userData.lights.forEach((m,i)=>m.visible=Math.floor(t*8)%2===i);

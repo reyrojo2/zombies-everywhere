@@ -22,10 +22,24 @@ export class TVIntroduction {
     this.screen=new THREE.Mesh(new THREE.PlaneGeometry(3.05,1.72),new THREE.MeshBasicMaterial({map:this.texture,toneMapped:false}));
     this.screen.position.set(0,1.85,-2.845);this.scene.add(this.screen);
     this.light=new THREE.PointLight(0x98c9ff,3,5);this.light.position.set(0,1.85,-2.5);this.scene.add(this.light);
+    // A visible resident watches from the sofa, gets up, and opens the apartment door.
+    this.resident=new THREE.Group();this.scene.add(this.resident);
+    const part=(size,pos,color,parent=this.resident)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(...size),new THREE.MeshStandardMaterial({color,roughness:.9}));m.position.set(...pos);parent.add(m);return m;};
+    part([.48,.65,.28],[0,1.1,0],0x566d83);part([.23,.28,.23],[0,1.57,0],0xb68c72);
+    part([.25,.08,.25],[0,1.74,0],0x24272a);
+    this.legs=[part([.18,.7,.2],[-.14,.43,0],0x252e3b),part([.18,.7,.2],[.14,.43,0],0x252e3b)];
+    this.arms=[part([.14,.6,.16],[-.32,1.1,0],0x566d83),part([.14,.6,.16],[.32,1.1,0],0x566d83)];
+    this.resident.position.set(-1.8,-.38,1.5);this.resident.rotation.y=Math.PI;
+    box([1.45,2.8,.08],[2.45,1.4,-2.98],0x171b20);
+    this.daylight=box([1.2,2.6,.03],[2.45,1.35,-2.90],0xb9d1d7);
+    this.door=new THREE.Group();this.door.position.set(1.8,0,-2.8);this.scene.add(this.door);
+    part([1.25,2.65,.09],[.625,1.35,0],0x73513c,this.door);
+    part([.08,.08,.10],[1.08,1.2,.10],0xb9a77d,this.door);
     this.last=-Infinity;this.lastText='';
   }
   draw(time,text,label) {
     const es=label.includes('CANAL');
+    if(time>=42){const c=this.ctx;c.fillStyle='#111820';c.fillRect(0,0,1024,576);c.fillStyle='#b0c3cd';c.textAlign='center';c.font='28px sans-serif';c.fillText(es?'TOMAS LAS LLAVES. SALES A COMPRAR MASCARILLAS.':'YOU TAKE YOUR KEYS AND GO OUT FOR MASKS.',512,290);c.textAlign='left';this.texture.needsUpdate=true;return;}
     const c=this.ctx,w=1024,h=576,index=Math.min(2,Math.floor(time/14));
     c.fillStyle='#112a42';c.fillRect(0,0,w,h);
     c.fillStyle='#1b4564';for(let i=0;i<7;i++)c.fillRect(i*180-(time*12%180),40,100,340);
@@ -57,12 +71,20 @@ export class TVIntroduction {
       }
       c.fillStyle='#e0b45d';c.font='16px sans-serif';c.fillText(es?'IMÁGENES SIN VERIFICAR':'UNVERIFIED FOOTAGE',30,305);
     } else {
-      c.fillStyle='#314e5e';
-      for(const [x,y,w,h] of [[25,75,120,95],[110,180,55,100],[230,80,200,90],[250,170,65,110],[400,230,70,50]])c.fillRect(x,y,w,h);
-      for(const [x,y] of [[85,120],[310,120],[265,180],[425,255]]){c.strokeStyle='#e75a4f';c.lineWidth=3;c.beginPath();c.arc(x,y,5+(time*5)%22,0,Math.PI*2);c.stroke();}
-      c.strokeStyle='#b58b61';c.setLineDash([7,5]);c.beginPath();c.moveTo(85,120);c.lineTo(310,120);c.lineTo(425,255);c.stroke();c.setLineDash([]);
+      c.fillStyle='#747570';c.fillRect(0,210,510,110);
+      for(let i=0;i<5;i++){
+        c.fillStyle=['#9b6552','#ba9876','#7e6a61'][i%3];c.fillRect(i*106,38,98,185);
+        for(let y=60;y<190;y+=47)for(let x=15;x<90;x+=36){c.fillStyle='#233b48';c.fillRect(i*106+x,y,20,28);}
+        c.fillStyle='#273a35';c.fillRect(i*106+38,190,28,38);
+      }
+      c.fillStyle='#dee4de';c.fillRect(360,105,145,38);c.fillStyle='#a73434';c.font='bold 16px sans-serif';c.fillText(es?'CENTRO MÉDICO':'MEDICAL CENTRE',367,130);
+      const ax=220+Math.sin(time*.4)*30;c.fillStyle='#dedfd5';c.fillRect(ax,248,103,40);c.fillStyle=Math.floor(time*7)%2?'#df514c':'#489bff';c.fillRect(ax+25,240,30,8);
     }
-    c.fillStyle='#fff';c.font='bold 22px sans-serif';c.fillText((es?['CHINA / ARCHIVO','REPORTES SIN VERIFICAR','ALERTA INTERNACIONAL']:['CHINA / ARCHIVE','UNVERIFIED REPORTS','INTERNATIONAL ALERT'])[index],18,32);
+    // Recognizable witnesses / patients rather than unlabeled blocks and abstract map shapes.
+    const human=(x,y,color,run)=>{c.fillStyle=color;c.beginPath();c.arc(x,y-28,7,0,Math.PI*2);c.fill();c.lineWidth=7;c.strokeStyle=color;c.beginPath();c.moveTo(x,y-18);c.lineTo(x,y+5);c.moveTo(x,y-10);c.lineTo(x-12,y+(run?Math.sin(time*9+x)*12:-3));c.moveTo(x,y-10);c.lineTo(x+12,y-5);c.moveTo(x,y+5);c.lineTo(x-10,y+23+(run?Math.sin(time*10+x)*5:0));c.moveTo(x,y+5);c.lineTo(x+10,y+23);c.stroke();};
+    for(let i=0;i<(index===2?7:3);i++)human(30+(i*65+time*(index===2?-28:5)+4000)%450,265,['#dfd9c1','#bd5353','#7eb2c5'][i%3],index!==0);
+    c.fillStyle='#13232edd';c.fillRect(8,285,490,33);c.fillStyle='#fff';c.font='bold 17px sans-serif';c.fillText((es?['URGENCIAS: PACIENTES CON FIEBRE','REPORTES DE MUERTES / SIN CIFRAS','VECINOS HUYEN / LLEGAN AMBULANCIAS']:['EMERGENCY: PATIENTS WITH FEVER','DEATHS REPORTED / NO CONFIRMED FIGURES','RESIDENTS FLEE / AMBULANCES ARRIVE'])[index],15,308);
+    c.fillStyle='#fff';c.font='bold 22px sans-serif';c.fillText((es?['CHINA / HOSPITAL','CHINA / ARCHIVO SIN VERIFICAR','NUEVA YORK / WEST VILLAGE']:['CHINA / HOSPITAL','CHINA / UNVERIFIED ARCHIVE','NEW YORK / WEST VILLAGE'])[index],18,32);
     c.restore();
     c.fillStyle='#ad302f';c.fillRect(0,0,1024,40);c.font='bold 21px sans-serif';c.fillStyle='#fff';c.fillText(label,24,28);
     c.fillStyle='#ddd';c.font='18px monospace';c.fillText((es?['12 ENE 2020','26 ENE 2020','03 FEB 2020']:['12 JAN 2020','26 JAN 2020','03 FEB 2020'])[index],806,28);
@@ -74,13 +96,29 @@ export class TVIntroduction {
     const transition=time%14;if(transition<.25 && time>1){c.fillStyle='#b5bec966';for(let i=0;i<30;i++)c.fillRect(0,(i*37+time*800)%576,1024,3);}
     this.texture.needsUpdate=true;
   }
+  update(mission) {
+    const time=mission.time;
+    if(time<42){
+      const approach=Math.min(1,Math.max(0,(time-3)/4));
+      this.resident.position.set(-1.8,-.38,1.5);this.resident.rotation.y=Math.PI;
+      this.legs.forEach(leg=>leg.rotation.x=-.9);this.arms.forEach(arm=>arm.rotation.x=-.4);this.door.rotation.y=0;
+      this.camera.position.set(-.5*(1-approach),1.85+(.5*(1-approach)),3.8-approach*3.4);this.camera.lookAt(0,1.75,-2.9);
+    }else{
+      const progress=Math.min(1,(time-42)/6),walk=Math.max(0,(progress-.12)/.88);
+      this.resident.position.set(-1.8+walk*4.25,Math.min(0,-.38+(time-42)*.6),1.5-walk*4.7);
+      this.resident.rotation.y=Math.atan2(4.25,-4.7);
+      this.legs.forEach((leg,i)=>leg.rotation.x=Math.sin(time*9+i*Math.PI)*.45);
+      this.arms.forEach((arm,i)=>arm.rotation.x=-Math.sin(time*9+i*Math.PI)*.32);
+      this.door.rotation.y=-Math.min(1,Math.max(0,(progress-.55)/.25))*1.4;
+      this.camera.position.set(1,2.2,4);this.camera.lookAt(this.resident.position.x,1.2,this.resident.position.z);
+    }
+  }
   render(renderer,mission,t) {
     if(mission.time-this.last>.065 || mission.time<this.last || this.lastText!==t('bulletin'+Math.min(2,Math.floor(mission.time/14)))) {
       const text=t('bulletin'+Math.min(2,Math.floor(mission.time/14)));this.draw(mission.time,text,t('news'));this.last=mission.time;this.lastText=text;
     }
     const size=renderer.getSize(new THREE.Vector2());this.camera.aspect=size.x/size.y;this.camera.updateProjectionMatrix();
-    const approach=Math.min(1,mission.time/6);
-    this.camera.position.set(.8*(1-approach),1.9,2.2-approach*1.7);this.camera.lookAt(0,1.75,-2.9);
+    this.update(mission);
     renderer.render(this.scene,this.camera);
   }
 }

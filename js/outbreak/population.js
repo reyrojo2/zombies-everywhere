@@ -34,7 +34,7 @@ export class Population {
       if (a.civilian) {
         a.threat = zombies.find(z => distance(a, z) < 26 && clear(a, z));
         if (a.threat) a.state = 'fleeing';
-        if (a.state === 'fleeing' && distance(a, this.config.shelter) < 7) a.sheltered = true;
+        // Exit/re-entry is managed by the crowd director, not a single shared destination.
         continue;
       }
       let target = player, best = distance(a, player);

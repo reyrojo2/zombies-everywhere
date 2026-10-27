@@ -22,13 +22,14 @@ export class OutbreakGame {
       if (!p) throw new Error(`No walkable mission waypoint: ${key}`);
       this.config[key] = { ...MANHATTAN[key], ...p };
     }
+    this.config.shelters=MANHATTAN.shelters.map(p=>this.nav.nearest(p,35)).filter(Boolean);
     this.civilianNav = new NavigationGrid(MANHATTAN.bounds, colliders);
     this.civilianNav.flood(this.config.shelter);
     for (const key of ['spawn', 'hospital']) {
       if (this.civilianNav.cost[this.civilianNav.index(this.config[key])] < 0) throw new Error(`Disconnected mission waypoint: ${key}`);
     }
     this.escapeRoutes=[{nav:this.civilianNav,goal:this.config.shelter}];
-    for(const [x,z] of [[-340,-165],[160,-245],[-340,-403],[160,-85]]) {
+    for(const {x,z} of MANHATTAN.exits) {
       const nav=new NavigationGrid(MANHATTAN.bounds,colliders),goal=nav.nearest({x,z},30);
       if(goal){nav.flood(goal);this.escapeRoutes.push({nav,goal});}
     }
@@ -39,6 +40,7 @@ export class OutbreakGame {
     this.hospital = this.createMarker(this.config.hospital, 0xe5b45a);
     this.radio = this.createMarker(this.config.radio, 0x68b8ea);
     this.shelter = this.createMarker(this.config.shelter, 0x73e0ad);
+    this.otherShelters=this.config.shelters.slice(1).map(p=>this.createMarker(p,0x73e0ad));
     this.view = new OutbreakView({ onAnswer: () => this.mission.answerPhone(), onQuality, onStart: () => this.start(), onSkip: () => this.mission.skipIntro(),
       onPause: () => this.pause(), onLanguage: () => this.updateSigns(), onSound: () => audio.setEnabled(!audio.enabled) });
     this.updateSigns();
@@ -48,7 +50,7 @@ export class OutbreakGame {
     document.body.classList.add('outbreak-mode');
     // Capture prevents explorer shortcuts (teleports, vehicles, free camera) during a mission.
     window.addEventListener('keydown', (e) => {
-      if(e.code==='KeyF' && this.mission.phase==='phone'){this.mission.answerPhone();e.preventDefault();return;}
+      if(e.code==='KeyF' && this.mission.phase==='phone' && !this.mission.phoneAnswered){this.mission.answerPhone();e.preventDefault();return;}
       if(e.code==='KeyF' && !e.target.closest?.('select,input')) {this.interacting=true;e.preventDefault();return;}
       if (e.code === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); if (!e.repeat) this.pause(); return; }
       if (e.target.closest?.('select,button,input')) return;
@@ -71,7 +73,7 @@ export class OutbreakGame {
     group.userData.sign = sign; this.markers.add(group); return group;
   }
   updateSigns() {
-    for (const [marker, key] of [[this.hospital, 'hospital'], [this.shelter, 'shelter'], [this.radio,'radio']]) {
+    for (const [marker, key] of [[this.hospital, 'hospital'], [this.shelter, 'shelter'], [this.radio,'radio'],...this.otherShelters.map(m=>[m,'shelter'])]) {
       const canvas = document.createElement('canvas'); canvas.width = 768; canvas.height = 160;
       const ctx = canvas.getContext('2d'); ctx.fillStyle = '#101b22'; ctx.fillRect(0, 0, 768, 160);
       ctx.strokeStyle = key === 'hospital' ? '#e5b45a' : '#73e0ad'; ctx.lineWidth = 8; ctx.strokeRect(4, 4, 760, 152);
@@ -111,10 +113,11 @@ export class OutbreakGame {
     if (previous !== 'escape' && m.phase === 'escape') this.actors.spawn();
     if (m.playing) this.actors.update(dt, player, m, this.civilianNav, this.escapeRoutes);
     this.incidents.update(dt,m,player.position);
-    this.sound.update(dt, m, this.actors.actors, player.position, this.incidents);
+    this.sound.update(dt, m, this.actors.actors, player.position, this.incidents,k=>this.view.t(k),this.view.language);
     if (previous !== m.phase) { this.controller.resetInput(); this.render(); }
     this.hospital.visible = ['menu', 'intro', 'errand'].includes(m.phase);
     this.shelter.visible = m.radioReady && ['escape', 'won'].includes(m.phase);
+    this.otherShelters.forEach(marker=>marker.visible=this.shelter.visible);
     this.radio.visible = m.phase==='escape' && !m.radioReady;
     this.view.root.classList.toggle('ze-hit', m.hurtCooldown > this.config.attackCooldown - 0.18);
     this.uiClock += dt;
@@ -124,12 +127,15 @@ export class OutbreakGame {
   }
   render() {
     if (!this.view) return;
-    const m = this.mission, target = m.phase === 'escape' ? (m.radioReady ? this.config.shelter : this.config.radio) : this.config.hospital;
-    let feed = m.phase==='phone' ? (m.phoneAnswered ? (m.time<6?'call0':'call1') : 'phoneIncoming') : 'ready';
+    const m = this.mission, pos=this.controller.entities.person.position;
+    const refuge=this.config.shelters.reduce((a,b)=>distance(a,pos)<distance(b,pos)?a:b);
+    const target=m.phase==='escape'?(m.radioReady?refuge:this.config.radio):this.config.hospital;
+    let feed = m.phase==='phone' ? (m.phoneAnswered ? (m.callTime<9?'call0':'call1') : 'phoneIncoming') : 'ready';
+    if(m.phase==='errand')feed=m.streetTime<10?'street0':m.streetTime<24?'street1':'street2';
     if (m.phase === 'errand' && distance(this.controller.entities.person.position, this.config.hospital) < 20 && m.time < 24) feed = 'waiting';
     if (m.phase === 'escape') feed = m.time < 9 ? 'call2' : m.time < 23 ? 'cut' : 'emergency';
     const nearest=Math.min(999,...this.actors.actors.filter(a=>a.state==='zombie').map(a=>distance(a,this.controller.entities.person.position)));
-    this.view.render(m, { threat: m.phase==='escape' ? nearest : 999, infections: this.actors.population.infections, distance: distance(this.controller.entities.person.position, target), feed, boundary: this.boundary, sound: this.audio.enabled });
+    this.view.render(m, { threat: m.playing ? nearest : 999, infections: this.actors.population.infections, distance: distance(this.controller.entities.person.position, target), feed, boundary: this.boundary, sound: this.audio.enabled });
     this.view.drawMap(this.nav, this.controller.entities.person, this.actors.actors, target);
   }
 }

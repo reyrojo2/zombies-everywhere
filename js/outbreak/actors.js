@@ -1,7 +1,6 @@
 import { PersonCrowd, PersonRig } from '../pedestrians.js';
 import { distance } from './mission.js';
 import { Population } from './population.js';
-import { streetZ } from '../city-config.js';
 import { ZombieModels } from './zombie-model.js';
 
 export class OutbreakActors {
@@ -16,41 +15,46 @@ export class OutbreakActors {
   }
   get actors() { return this.population.actors; }
   reset() {
-    this.population.reset(); this.timer=0; this.time=0; this.wave=0;
+    this.population.reset(); this.timer=0; this.time=0; this.wave=0;this.seeded=0;this.spawned=false;
     this.crowd.begin(); this.crowd.end(); this.models.reset();
   }
   prepare() {
     this.reset();
     const {hospital,civilianCount}=this.config;
     for(let i=0;i<civilianCount;i++) {
-      const clusters=[[-18,-100],[-18,-185],[25,-165],[-90,-165],[65,-245],[-170,-245]];
-      const [x,z]=clusters[i%clusters.length];
-      const p=this.nav.nearest({x:x+(Math.floor(i/6)%3-1)*3,z:z+(Math.floor(i/18)-1)*3});
+      const anchors=this.config.crowdAnchors || [hospital];
+      const anchor=anchors[i%anchors.length];
+      const angle=i*2.39996,radius=4+Math.floor(i/anchors.length)*2;
+      const p=this.nav.nearest({x:anchor.x+Math.cos(angle)*radius,z:anchor.z+Math.sin(angle)*radius},25);
       if(!p) continue;
       const a=this.population.add(p);
+      a.home={...p};a.panicAt=2+(i%17)*2.3;a.stayUntil=28+(i%9)*4;
       a.rig=new PersonRig({seed:2.8+i*.71,armSwing:1,stride:1,girth:.95});
     }
   }
-  spawn() {
-    const {hospital,zombieCount}=this.config;
-    for(let i=0;i<zombieCount;i++) {
-      let p=this.nav.nearest({x:hospital.x+(i%3-1)*5,z:hospital.z+(i<6?12+Math.floor(i/3)*7:-110-Math.floor(i/3)*12)});
-      if(i===0) {
-        const witness=this.actors.find(a=>a.civilian && distance(a,hospital)<25);
-        const beside=witness && {x:witness.x+.9,z:witness.z};
-        if(beside && this.nav.clear(witness,beside)) p=beside;
-      }
-      if(p) this.population.add(p,true);
+  seed(count,nearPlayer=null) {
+    const anchors=this.config.crowdAnchors || [this.config.hospital];
+    for(let i=0;i<count && this.seeded<this.config.zombieCount;i++) {
+      const n=this.seeded++,source=anchors[(n*3+2)%anchors.length];
+      const p=this.nav.nearest({x:source.x+(n%3-1)*4,z:source.z+6},25);
+      if(p && (!nearPlayer || distance(p,nearPlayer)>10)) this.population.add(p,true);
     }
     this.population.activate();
-    for(const a of this.actors) if(a.civilian) a.state='fleeing';
+  }
+  spawn() {
+    if(this.spawned)return;
+    this.spawned=true;this.seed(this.config.zombieCount-this.seeded);
   }
   update(dt,player,mission,civilianNav,routes=[{nav:civilianNav,goal:this.config.shelter}]) {
     this.time+=dt; this.timer-=dt;
-    const pos=player.position;
-    if(this.population.active && this.wave<4 && mission.time >= 7+this.wave*9) {
+    const pos=player.position,streetTime=mission.streetTime ?? mission.time;
+    // A few frightened residents immediately; individual reactions spread before the full outbreak.
+    const required=streetTime>=30?6:streetTime>=18?3:streetTime>=9?1:0;
+    if(this.seeded<required)this.seed(required-this.seeded,pos);
+    for(const a of this.actors)if(a.state==='normal' && streetTime>=a.panicAt)a.state='fleeing';
+    if(mission.phase==='escape' && this.wave<4 && mission.time >= 7+this.wave*9) {
       const wave=this.wave++;
-      const source={x:wave%2 ? 45 : -45,z:streetZ(44+wave)};
+      const source=(this.config.crowdAnchors || [this.config.hospital])[(wave*2+3)%(this.config.crowdAnchors?.length || 1)];
       for(let i=0;i<4;i++) {
         const p=this.nav.nearest({x:source.x+i*3,z:source.z});
         if(p && distance(p,pos)>22 && civilianNav.cost[civilianNav.index(p)]>=0) this.population.add(p,true);
@@ -70,14 +74,21 @@ export class OutbreakActors {
         const route=routes[a.id%routes.length];
         nav=route.nav;target=route.goal;speed=4.3+(a.id%6)*.28;
         if(nav.cost[nav.index(a)]<0){nav=civilianNav;target=this.config.shelter;}
-        if(distance(a,target)<5){a.sheltered=true;continue;}
+        if(distance(a,target)<5){
+          if(streetTime<a.stayUntil){a.state='normal';a.panicAt=streetTime+4;continue;}
+          // Re-enter through another street so the neighborhood does not empty at once.
+          const entry=this.config.crowdAnchors?.[(a.id+Math.floor(streetTime/12))%this.config.crowdAnchors.length];
+          const p=entry && distance(a,pos)>65 && distance(entry,pos)>65 && this.nav.nearest(entry,20);
+          if(p){a.x=p.x;a.z=p.z;a.stayUntil=streetTime+25;}else {a.state='normal';a.panicAt=streetTime+3;}
+          continue;
+        }
         if(a.threat && distance(a,a.threat)<6) {
           const d=Math.max(.01,distance(a,a.threat));
           const retreat={x:a.x+(a.x-a.threat.x)/d*5,z:a.z+(a.z-a.threat.z)/d*5};
           if(nav.clear(a,retreat)) target=retreat;
         }
       } else if(a.state==='normal') {
-        target=a.id%2 ? {x:a.x+Math.cos(this.time*.18+a.id)*2,z:a.z} : {x:a.x,z:a.z+Math.cos(this.time*.16+a.id)*2};speed=1.0+(a.id%4)*.12;
+        target={x:a.home.x+Math.cos(this.time*.08+a.id)*5,z:a.home.z+Math.sin(this.time*.08+a.id)*5};speed=1.0+(a.id%4)*.12;
       }
       if(target) {
         // Only direct, visible civilians are selected. Occluded pursuit uses the shared player field.
@@ -91,7 +102,7 @@ export class OutbreakActors {
         if(distance(a,next)>.001) a.heading=Math.atan2(next.x-a.x,next.z-a.z);
         a.x=next.x;a.z=next.z;
       }
-      if(a.civilian && a.state!=='turning') {
+      if(a.civilian && a.state!=='turning' && distance(a,pos)<220) {
         a.rig.update(dt,a.x,a.z,a.heading,this.ground);this.crowd.add(a.rig,distance(a,pos));
       }
     }

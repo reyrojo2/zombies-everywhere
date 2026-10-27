@@ -1,6 +1,6 @@
 // Short procedural cues share the city's audio context, limiter and master volume.
 export class OutbreakSound {
-  constructor(audio) { this.audio=audio; this.voices=new Set();this.lastCue=null;this.growlTime=0;this.ambienceTime=0;this.crashPlayed=false;this.buffers=[];this.samples={};this.loading=null;this.musicVoice=null;this.screamTime=0;this.ringTime=0; }
+  constructor(audio) { this.audio=audio; this.voices=new Set();this.lastCue=null;this.growlTime=0;this.ambienceTime=0;this.crashPlayed=false;this.buffers=[];this.samples={};this.loading=null;this.musicVoice=null;this.screamTime=0;this.ringTime=0;this.spoken=null;this.utterance=null; }
   loadSamples() {
     const context=this.audio.context;
     if(this.loading || !context?.decodeAudioData)return;
@@ -32,7 +32,15 @@ export class OutbreakSound {
     source.connect(gain).connect(pan).connect(mix);this.voices.add(source);
     source.onended=()=>{this.voices.delete(source);source.disconnect();gain.disconnect();pan.disconnect();};source.start();
   }
-  stop() { for(const voice of this.voices) { try{voice.stop();}catch{} } this.voices.clear();this.musicVoice=null; }
+  narrate(key,text,language) {
+    if(this.spoken===key || !globalThis.speechSynthesis || !globalThis.SpeechSynthesisUtterance)return;
+    this.spoken=key;speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(text);u.lang=language==='en'?'en-US':'es-PE';u.rate=1.06;u.volume=.95;
+    const voices=speechSynthesis.getVoices(),prefix=language==='en'?'en':'es';
+    u.voice=voices.find(v=>v.lang===u.lang)||voices.find(v=>v.lang.startsWith(prefix))||null;
+    this.utterance=u;speechSynthesis.speak(u);
+  }
+  stop() { if(this.utterance){globalThis.speechSynthesis?.cancel();this.utterance=null;this.spoken=null;} for(const voice of this.voices) { try{voice.stop();}catch{} } this.voices.clear();this.musicVoice=null; }
   tone(frequency,duration,volume=.06,position=null,rasp=false,endFrequency=null) {
     const {context,mix,enabled}=this.audio;
     if(!enabled || !context || context.state!=='running' || this.voices.size>=6) return;
@@ -57,26 +65,34 @@ export class OutbreakSound {
     this.voices.add(osc);osc.onended=()=>{this.voices.delete(osc);try{noise?.stop();}catch{}noise?.disconnect();osc.disconnect();filter.disconnect();gain.disconnect();pan?.disconnect();};
     osc.start();osc.stop(now+duration+.02);
   }
-  update(dt,mission,actors,player,incidents=null) {
+  update(dt,mission,actors,player,incidents=null,t=null,language='es') {
     if(mission.paused || ['menu','won','lost'].includes(mission.phase) || !this.audio.enabled) {this.stop();return;}
     if(!this.audio.context || this.audio.context.state!=='running')return;
     this.loadSamples();
-    const cue=mission.phase==='intro'?`news${Math.min(2,Math.floor(mission.time/14))}`:
-      mission.phase==='phone'?(mission.phoneAnswered?'call':'phone'):mission.time<9?'alarm':mission.time<23?'disconnect':'escape';
+    const bulletin=Math.min(2,Math.floor(mission.time/14));
+    const cue=mission.phase==='intro'?`news${bulletin}`:
+      mission.phase==='phone'?(mission.phoneAnswered?'call':'phone'):mission.phase==='errand'?'street':mission.time<9?'alarm':mission.time<23?'disconnect':'escape';
+    if(t) {
+      if(mission.phase==='intro' && mission.time<42)this.narrate(`news-${language}-${bulletin}`,t('voice'+bulletin),language);
+      else if(mission.phoneAnswered && !mission.callComplete){const part=mission.callTime<10?0:1;this.narrate(`wife-${language}-${part}`,t('voiceCall'+part),language);}
+      else if(this.utterance){globalThis.speechSynthesis?.cancel();this.utterance=null;}
+    }
     if(cue!==this.lastCue) {
       this.lastCue=cue;
+      if(mission.phase==='intro') {if(this.musicVoice){try{this.musicVoice.stop();}catch{}}this.musicVoice=this.playSample('news-theme',.07,null,false,bulletin*4);}
+
       if(cue==='disconnect') this.tone(440,.5,.07);
       else if(cue==='alarm') {this.tone(740,1.6,.07,mission.config.hospital);this.tone(960,1.6,.035,mission.config.hospital);}
 
     }
     if(mission.phase==='intro') {
-      if(!this.musicVoice)this.musicVoice=this.playSample('news-theme',.22,null,true,mission.time);
+      // Short musical transitions; spoken bulletins carry the story, not a looping music bed.
     }else if(this.musicVoice){try{this.musicVoice.stop();}catch{}this.musicVoice=null;}
     if(mission.phase==='phone' && !mission.phoneAnswered){this.ringTime-=dt;if(this.ringTime<=0){this.tone(660,.6,.08);this.tone(880,.6,.04);this.ringTime=2.5;}}
     if(mission.phase==='errand' && mission.callComplete && mission.time%10<dt)this.tone(650,1,.035,mission.config.hospital,false,1050);
-    if(mission.phase==='escape') {
+    if(['errand','phone','escape'].includes(mission.phase) && (mission.streetTime??mission.time)>2) {
       this.screamTime-=dt;
-      if(this.screamTime<=0){const civilians=actors.filter(a=>a.state==='fleeing' && !a.sheltered && Math.hypot(a.x-player.x,a.z-player.z)<90);if(civilians.length)this.playSample('panic-scream',.35,civilians[Math.floor(Math.random()*civilians.length)]);this.screamTime=4+Math.random()*4;}
+      if(this.screamTime<=0){const civilians=actors.filter(a=>a.state==='fleeing' && !a.sheltered && Math.hypot(a.x-player.x,a.z-player.z)<90);if(civilians.length)this.playSample('panic-scream',.35,civilians[Math.floor(Math.random()*civilians.length)]);this.screamTime=3+Math.random()*4;}
 
       this.ambienceTime-=dt;
       if(this.ambienceTime<=0) {
@@ -88,7 +104,7 @@ export class OutbreakSound {
       if(incidents?.crashed && !this.crashPlayed) { this.tone(180,.7,.24,null,true);this.crashPlayed=true; }
     }
     this.growlTime-=dt;
-    if(mission.phase==='escape' && this.growlTime<=0) {
+    if(['errand','phone','escape'].includes(mission.phase) && this.growlTime<=0) {
       const nearby=actors.filter(a=>a.state==='zombie' && Math.hypot(a.x-player.x,a.z-player.z)<65).sort((a,b)=>Math.hypot(a.x-player.x,a.z-player.z)-Math.hypot(b.x-player.x,b.z-player.z));
       if(nearby.length) { const a=nearby[0];this.growl(a,Math.floor(mission.time)); }
       this.growlTime=.8+Math.random()*1.2;

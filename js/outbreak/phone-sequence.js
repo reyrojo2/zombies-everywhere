@@ -14,12 +14,12 @@ export class PhoneSequence {
     this.open=false;this.last=-1;
   }
   update(mission,t) {
-    const visible=mission.phase==='phone';this.group.visible=visible;
-    if(visible!==this.open){this.open=visible;this.cameraSystem.setCameraPreset(visible?'pov':'chase',true);this.cameraSystem.resetOrbit();}
+    const visible=mission.phase==='phone' && (!mission.phoneAnswered || mission.callTime<1.5);this.group.visible=visible;
+    if(visible!==this.open){this.open=visible;}
     if(!visible)return;
     const camera=this.cameraSystem.camera;camera.updateMatrixWorld();
-    const raise=mission.phoneAnswered?1:Math.min(1,mission.time/1.1);
-    this.group.position.set(0,-.10-(1-raise)*.4,-.65).applyMatrix4(camera.matrixWorld);this.group.quaternion.copy(camera.quaternion);
+    const raise=mission.phoneAnswered?Math.max(0,1-mission.callTime/1.5):1;
+    this.group.position.set(.28,-.18-(1-raise)*.6,-.82).applyMatrix4(camera.matrixWorld);this.group.quaternion.copy(camera.quaternion);
     if(Math.abs(mission.time-this.last)<.08 && this.label===t('wife'))return;this.last=mission.time;this.label=t('wife');
     const c=this.ctx;c.fillStyle='#142a38';c.fillRect(0,0,512,1024);
     c.fillStyle='#d4e2e8';c.font='24px sans-serif';c.fillText('09:41',30,45);c.fillText('LTE  ▰',390,45);
@@ -28,7 +28,7 @@ export class PhoneSequence {
     c.fillStyle='#527c8c';c.beginPath();c.arc(256,310,75,0,Math.PI*2);c.fill();
     c.fillStyle='#e9e8df';c.font='bold 40px sans-serif';c.textAlign='center';c.fillText(t('wife'),256,455);
     c.font='24px sans-serif';c.fillText(t(mission.phoneAnswered?'phoneConnected':'phoneIncoming'),256,515);
-    if(mission.phoneAnswered){c.font='26px monospace';c.fillText('00:'+String(Math.floor(mission.time)).padStart(2,'0'),256,563);
+    if(mission.phoneAnswered){c.font='26px monospace';c.fillText('00:'+String(Math.floor(mission.callTime)).padStart(2,'0'),256,563);
       c.strokeStyle='#7fd1bb';c.lineWidth=4;c.beginPath();for(let x=60;x<452;x+=3){const y=650+Math.sin(x*.08+mission.time*8)*Math.sin(x*.027)*25;x===60?c.moveTo(x,y):c.lineTo(x,y);}c.stroke();
     }
     c.fillStyle=mission.phoneAnswered?'#ad4944':'#39ad7a';c.beginPath();c.arc(256,817,55+(mission.phoneAnswered?0:Math.sin(mission.time*5)*4),0,Math.PI*2);c.fill();

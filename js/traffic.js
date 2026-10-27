@@ -226,7 +226,17 @@ function createTrafficSystem(scene, sidewalks, obstacles, population = {}) {
     const lodMesh = (g) => {
       g.setAttribute('paintColor', new THREE.InstancedBufferAttribute(new Float32Array(n * 3), 3));
       g.setAttribute('carState', new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4));
-      const bodyMaterial=population.fixedPaint ? createLoftedCarMaterial(BODY_SPECS[kind],kind==='taxi'?0xffc526:kind==='suv'?0x7d3b39:0x748ea3) : mat;
+      let bodyMaterial=mat;
+      if(population.fixedPaint) {
+        const paint=kind==='taxi'?0xffc526:kind==='suv'?0x7d3b39:0x748ea3;
+        const parts=g.getAttribute('partId'),colors=new Float32Array(g.getAttribute('position').count*3),c=new THREE.Color();
+        for(let i=0;i<colors.length/3;i++) {
+          const id=parts?Math.round(parts.getX(i)):0;
+          c.setHex(id===1?0x354e60:id===2||id===4?0x20252b:id===3?0xaeb9c1:id===6?0xffcc55:paint);c.toArray(colors,i*3);
+        }
+        g.setAttribute('color',new THREE.BufferAttribute(colors,3));
+        bodyMaterial=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.6,metalness:.15,side:THREE.DoubleSide});
+      }
       const mesh=new THREE.InstancedMesh(g,bodyMaterial,n);mesh.name='TrafficBody_'+kind;return mesh;
     };
     bodies[kind] = { near: lodMesh(geo), far: lodMesh(buildCarProxyGeometry(BODY_SPECS[kind])) };

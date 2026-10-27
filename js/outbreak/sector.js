@@ -12,6 +12,11 @@ export function selectMissionBlocks(blocks, missionBounds, count=500) {
     return score(a)-score(b)||a.id-b.id;
   }).slice(0,count);
 }
+// Match the original city grid's curb cover: an irregular block's bounding box can cover entire streets.
+export function missionSidewalkFootprints(blocks) {
+  return blocks.flatMap(b=>b.median?[]:b.rect?[{minX:b.minX,maxX:b.maxX,minZ:b.minZ,maxZ:b.maxZ}]:
+    b.rects.map(([x0,x1,z0,z1])=>({minX:x0-4.4,maxX:x1+4.4,minZ:z0-4.4,maxZ:z1+4.4})));
+}
 function concreteTexture() {
   const canvas=document.createElement('canvas');canvas.width=canvas.height=256;
   const ctx=canvas.getContext('2d');ctx.fillStyle='#9b9a94';ctx.fillRect(0,0,256,256);
@@ -30,7 +35,7 @@ export function buildMissionGround(scene, missionBounds) {
   ground.rotation.x=-Math.PI/2;ground.position.set((bounds.minX+bounds.maxX)/2,0,(bounds.minZ+bounds.maxZ)/2);ground.receiveShadow=true;group.add(ground);
   const top=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.95,map:concreteTexture(),vertexColors:true});
   const slabs=new Map();
-  const sidewalks=[];
+  const sidewalks=missionSidewalkFootprints(blocks);
   for(const b of blocks) {
     const shape=new THREE.Shape();b.poly.forEach((p,i)=>i?shape.lineTo(p.x,-p.z):shape.moveTo(p.x,-p.z));shape.closePath();
     // A raised solid slab with visible vertical curb faces; park landscaping comes from landmarks.
@@ -40,7 +45,6 @@ export function buildMissionGround(scene, missionBounds) {
     geometry.setAttribute('color',new THREE.BufferAttribute(colors,3));geometry.rotateX(-Math.PI/2);
     const key=Math.floor((b.minX+b.maxX)/400)+','+Math.floor((b.minZ+b.maxZ)/400);
     if(!slabs.has(key))slabs.set(key,[]);slabs.get(key).push(geometry);
-    sidewalks.push({minX:b.minX,maxX:b.maxX,minZ:b.minZ,maxZ:b.maxZ});
   }
   for(const geometries of slabs.values()){const mesh=new THREE.Mesh(mergeGeometries(geometries,false),top);mesh.receiveShadow=true;group.add(mesh);geometries.forEach(g=>g.dispose());}
   const paint=new THREE.MeshBasicMaterial({color:0xd2caa9});
