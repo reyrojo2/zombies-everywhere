@@ -1,6 +1,8 @@
 // Geography and balancing are data; the mission rules do not import Manhattan.
 export const MANHATTAN = {
   id: 'manhattan',
+  storyStart: '2020-02-03T17:30:00Z', // Fictional New York wall time, not a UTC conversion.
+  playerIncubationSeconds: 240,
   bounds: { minX: -1100, maxX: -200, minZ: 2500, maxZ: 3330 },
   spawn: { x: -837, z: 2708, heading: .73 },
   hospital: { x: -700, z: 2860 },
@@ -23,7 +25,7 @@ export const MANHATTAN = {
   zombieSpeed: 2.55,
   zombieCount: 12,
   reinforcementCount: 16,
-  civilianCount: 104,
+  civilianCount: 176,
   incubationSeconds: 6,
   turningSeconds: 2
 };
@@ -31,7 +33,7 @@ export const MANHATTAN = {
 export class Mission {
   constructor(config) { this.config = config; this.reset(); }
   reset() {
-    this.phase = 'menu'; this.time = 0; this.health = this.config.maxHealth;
+    this.phase = 'menu'; this.time = 0; this.elapsed = 0; this.infectionRemaining = null; this.lossReason = null; this.health = this.config.maxHealth;
     this.stamina = this.config.maxStamina; this.hurtCooldown = 0;
     this.phoneAnswered=false;this.callComplete=false;this.callTime=0;this.streetTime=0;
     this.radioReady = false; this.radioProgress = 0;
@@ -43,7 +45,13 @@ export class Mission {
   answerPhone() { if(this.phase==='phone' && !this.phoneAnswered){this.phoneAnswered=true;this.callTime=0;} }
   tick(dt, position, wantsSprint = false, interacting = false) {
     if (this.paused || ['menu', 'won', 'lost'].includes(this.phase)) return;
+    dt = Number.isFinite(dt) ? Math.max(0, dt) : 0;
+    this.elapsed += dt;
     this.time += dt;
+    if (this.infectionRemaining !== null) {
+      this.infectionRemaining = Math.max(0, this.infectionRemaining - dt);
+      if (this.infectionRemaining === 0) { this.phase = 'lost'; this.lossReason = 'infection'; return; }
+    }
     this.hurtCooldown = Math.max(0, this.hurtCooldown - dt);
     if (this.phase === 'intro') {
       if (this.time >= this.config.introSeconds) this.skipIntro();
@@ -71,6 +79,12 @@ export class Mission {
       this.phase = 'won';
       }
     }
+  }
+  get storyDate() { return new Date(Date.parse(this.config.storyStart || '2020-02-03T17:30:00Z') + this.elapsed * 1000); }
+  bite() {
+    if (!this.hurt()) return false;
+    if (this.infectionRemaining === null) this.infectionRemaining = this.config.playerIncubationSeconds ?? 240;
+    return true;
   }
   hurt() {
     if (!this.playing || this.streetTime < 12 || this.hurtCooldown > 0) return false;

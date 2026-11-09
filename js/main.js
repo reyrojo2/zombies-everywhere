@@ -55,7 +55,7 @@ async function initApp() {
   });
   renderer.setPixelRatio(cinematic || quality === 'cinematic' ? 1 : quality === 'low' ? 0.6 : 0.8);
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.shadowMap.enabled = cinematic || quality === 'cinematic';
+  renderer.shadowMap.enabled = cinematic;
   renderer.lighting = new ClusteredLighting(256, 32, 28, 48);
   container.appendChild(renderer.domElement);
 
@@ -100,7 +100,7 @@ async function initApp() {
     ...cityGrid.footprints,
     ...streetDetails.footprints,
     ...allColliders.filter((c) => !c.obb && (c.minY ?? 0) < 3.5)
-  ], outbreakEnabled ? { cars: 24, buses: 2, pedestrians: 0, fixedPaint: true } : {});
+  ], outbreakEnabled ? { cars: 56, buses: 3, pedestrians: 0, fixedPaint: true } : {});
   markInit('traffic');
   const highwayTraffic = createHighwayTraffic(scene, outbreakEnabled ? [] : cityGrid.highwayLanes);
   if (!outbreakEnabled) buildRoadPaint(scene, trafficSystem.network);
@@ -188,7 +188,7 @@ async function initApp() {
   const directPipeline = { render: () => renderer.render(scene, cameraSystem.camera) };
   let fullPipeline = null;
   let renderPipeline = directPipeline;
-  {
+  if (cinematic) {
     const ssrFade = smoothstep(360.0, 180.0, positionView.z.negate());
     const maxSSRRoughness = 0.75;
     sceneMRT = mrt({
@@ -225,7 +225,7 @@ async function initApp() {
     const reflections = ssrPass.mul(reflectionMask);
     colorGrade = createPostProcessing(renderer, scenePassColor, reflections);
     fullPipeline = new THREE.RenderPipeline(renderer, colorGrade.outputNode);
-    renderPipeline = cinematic || quality === 'cinematic' ? fullPipeline : directPipeline;
+    renderPipeline = cinematic ? fullPipeline : directPipeline;
   }
 
   // 6. Wire UI Controls (Strictly using safe DOM APIs: textContent, classList, addEventListener)
@@ -573,16 +573,14 @@ async function initApp() {
   function applyQuality(value) {
     quality = ['low','balanced','cinematic'].includes(value) ? value : 'balanced';
     renderer.setPixelRatio(quality === 'low' ? .6 : quality === 'balanced' ? .8 : 1);
-    renderer.shadowMap.enabled = quality === 'cinematic';
-    renderPipeline = quality === 'cinematic' ? fullPipeline : directPipeline;
-    renderer.setSize(window.innerWidth,window.innerHeight);
+    // Resolution and draw distance share the same pipelines in every outbreak profile.
     cameraSystem.camera.far = quality === 'cinematic' ? 850 : quality === 'low' ? 350 : 550;
     cameraSystem.camera.updateProjectionMatrix();
     const url = new URL(location.href);url.searchParams.set('quality',quality);history.replaceState(null,'',url);
   }
   if(outbreakEnabled) applyQuality(quality);
   const outbreak = outbreakEnabled ? new OutbreakGame({ scene, controller: controllerManager,
-    camera: cameraSystem, colliders: allColliders, audio: audioSystem, onQuality: applyQuality }) : null;
+    camera: cameraSystem, colliders: allColliders, roadNetwork: trafficSystem.network, audio: audioSystem, onQuality: applyQuality }) : null;
   if (outbreak) {
     touchControls.setEnabled(false);
     gamepadControls.setEnabled(false);
@@ -645,8 +643,8 @@ async function initApp() {
       job.push(o);
     });
 
-    renderer.setRenderTarget(cinematic || quality==='cinematic' ? scenePass.renderTarget : null);
-    renderer.setMRT(cinematic || quality==='cinematic' ? sceneMRT : null);
+    renderer.setRenderTarget(cinematic ? scenePass.renderTarget : null);
+    renderer.setMRT(cinematic ? sceneMRT : null);
     const compile = async (object) => {
       // Each compile starts in a task of its own: compileAsync() keeps one precompilation state on the renderer,
       // which must not be mid-step for two of them in the same microtask checkpoint

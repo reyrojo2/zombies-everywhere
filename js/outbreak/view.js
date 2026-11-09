@@ -9,7 +9,7 @@ export class OutbreakView {
       <div class="ze-top"><a class="ze-brand" href="./">ZOMBIES<span>EVERYWHERE</span></a>
       <div class="ze-settings"><label><span data-text="language"></span> <select aria-label="Idioma / Language"><option value="es">Español</option><option value="en">English</option></select></label>
       <label><span data-text="quality"></span><select class="ze-quality" aria-label="Calidad / Quality"><option value="low" data-text="qualityLow"></option><option value="balanced" data-text="qualityBalanced"></option><option value="cinematic" data-text="qualityHigh"></option></select></label><button class="ze-sound" type="button"></button><button class="ze-pause" type="button" data-text="pause"></button></div></div>
-      <button class="ze-phone-answer" type="button" data-text="answer"></button><div class="ze-hud"><div class="ze-objective"></div><div class="ze-distance"></div><div class="ze-threat"></div>
+      <button class="ze-phone-answer" type="button" data-text="answer"></button><div class="ze-hud"><div class="ze-clock"></div><div class="ze-infection"></div><div class="ze-interaction"></div><div class="ze-objective"></div><div class="ze-distance"></div><div class="ze-threat"></div>
       <div class="ze-vitals"><label><span data-text="health"></span><progress class="ze-health" max="100" value="100"></progress></label>
       <label><span data-text="stamina"></span><progress class="ze-stamina" max="100" value="100"></progress></label></div></div>
       <canvas class="ze-map" width="240" height="190" aria-label="Mapa / Map"></canvas>
@@ -72,6 +72,17 @@ export class OutbreakView {
     this.$('.ze-distance').textContent = `${Math.ceil(distance)} m · ${this.t(phase === 'escape' ? (mission.radioReady ? 'shelter' : 'radio') : 'hospital')} · ${this.t('infections')}: ${infections}`;
     this.$('.ze-threat').textContent = threat<25 ? `${this.t('threat')}: ${Math.ceil(threat)} m` : phase==='escape' && !mission.radioReady ? `${Math.floor(mission.radioProgress/mission.config.radioHoldSeconds*100)}%` : '';
     this.root.classList.toggle('ze-danger',threat<14 && mission.playing);
+    const second=Math.floor(mission.storyDate.getTime()/1000);
+    if(this.clockSecond!==second || this.clockLanguage!==this.language) {
+      this.clockSecond=second;this.clockLanguage=this.language;
+      this.$('.ze-clock').textContent = new Intl.DateTimeFormat(this.language==='en'?'en-GB':'es-PE', {
+        timeZone:'UTC',weekday:'short',day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false
+      }).format(second*1000);
+    }
+    const remaining=Math.ceil(mission.infectionRemaining ?? 0);
+    this.$('.ze-infection').textContent = mission.infectionRemaining===null?'':`${this.t('infectedPlayer')} ${Math.floor(remaining/60)}:${String(remaining%60).padStart(2,'0')}`;
+    if(mission.lossReason==='infection')this.$('.ze-description').textContent=this.t('infectionLost');
+    this.$('.ze-interaction').textContent=this.driving?this.t('exitCar'):this.vehicleNearby?this.t('enterCar'):'';
     this.$('.ze-health').value = mission.health;
     this.$('.ze-stamina').value = mission.stamina;
     const text = this.t(boundary ? 'boundary' : feed);
@@ -95,9 +106,14 @@ export class OutbreakView {
       }
     }
     ctx.drawImage(this.mapBase, 0, 0);
+    if(this.route?.length) {
+      ctx.strokeStyle='#e5b45a';ctx.lineWidth=3;ctx.beginPath();
+      this.route.forEach((p,i)=>i?ctx.lineTo(x(p.x),z(p.z)):ctx.moveTo(x(p.x),z(p.z)));ctx.stroke();
+    }
     const dot = (p, color, radius) => { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x(p.x), z(p.z), radius, 0, Math.PI * 2); ctx.fill(); };
     for (const a of actors) if (!a.sheltered) dot(a, ['bitten','turning'].includes(a.state) ? '#e5b45a' : a.civilian ? '#58c9ff' : '#ff554e', 2.5);
     if(this.last?.radioReady)for(const p of this.last.config.shelters || [])dot(p,'#73e0ad',5);
+    if(this.vehiclePosition && !this.driving)dot(this.vehiclePosition,'#c0d7ff',4);
     dot(target, '#e5b45a', 5); dot(player.position, '#fff', 4);
     ctx.strokeStyle = '#fff'; ctx.beginPath(); ctx.moveTo(x(player.position.x), z(player.position.z));
     ctx.lineTo(x(player.position.x) + Math.sin(player.heading) * 10, z(player.position.z) + Math.cos(player.heading) * 10); ctx.stroke();

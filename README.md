@@ -22,7 +22,7 @@ Abre **http://localhost:8000** en un navegador de escritorio con aceleración gr
 2. Mira el informativo en una sala 3D: el residente está frente a la TV, se levanta, abre la puerta y sale (48 s, con opción de saltar). Tres boletines contextualizan hospital, reportes en China y alerta local en West Village. Son ilustraciones animadas procedurales, no vídeo real.
 3. Al salir ya hay vecinos; algunos huyen antes de que se declare el brote. La llamada de **Esposa** aparece a los cinco segundos. **F** o **Contestar** responde sin detener el movimiento; el celular baja en 1,5 s y la conversación sigue en segundo plano con subtítulos.
 4. El peligro progresa aunque no llegues al hospital ni contestes. Puedes tomar calles laterales. Busca la patrulla y mantén **F durante 3 s** junto a la radio; después elige entre dos refugios. Los infectados aparecen en rojo en el minimapa y los contagiados en ámbar.
-5. Si pierdes toda la salud, puedes reiniciar. Llegar al refugio termina esta primera misión.
+5. El HUD muestra la fecha y la hora ficticia de Nueva York. Si te muerden, tienes cuatro minutos para alcanzar un refugio antes de perder el control. Puedes reintentar al perder.
 
 | Control | Acción |
 | --- | --- |
@@ -32,6 +32,8 @@ Abre **http://localhost:8000** en un navegador de escritorio con aceleración gr
 | Espacio | Saltar |
 | Arrastrar ratón | Girar la cámara |
 | F (mantener) | Solicitar acceso al refugio por la radio de la patrulla |
+| E | Entrar al automóvil marcado en azul claro o salir con el automóvil detenido |
+| Q | Provocar un ruido delante de ti, con ocho segundos entre usos |
 | Esc o botón Pausar | Pausar / continuar |
 
 La partida también se pausa al cambiar de pestaña o perder el foco. El idioma se guarda localmente si el navegador lo permite. La misión se reinicia al recargar; no hay guardado de progreso. La resistencia agotada debe recuperar un 25% antes de volver a correr.
@@ -40,14 +42,14 @@ La partida también se pausa al cambiar de pestaña o perder el foco. El idioma 
 
 - West Village, con calles reales irregulares y los perfiles de viviendas/bloques bajos del generador original. El contexto visual ya no parte del corredor de torres de Midtown. La arquitectura sigue siendo procedural, no una reproducción de cada fachada.
 - Apartamento animado para la introducción; no es un interior explorable. Centro médico, farmacia y refugios son ubicaciones ficticias exteriores.
-- 104 civiles en ocho áreas, con reacciones individuales, rutas de huida distintas, separación local y reutilización de residentes fuera de la proximidad del jugador. El dibujo de civiles se limita a 220 m. Hasta 12 infectados iniciales introducidos por etapas y 16 refuerzos posteriores; máximo 132 actores. El contagio convierte al mismo actor, sin crear entidades.
-- Primeros huidos desde los 2 s. Semillas de infección a los 9, 18 y 30 s. El brote se declara cerca del hospital después de 22 s, o a los 42 s en cualquier lugar. No depende de completar la llamada ni de recorrer una recta obligatoria.
-- Cuatro choques dirigidos y seis incendios: 10, 23, 38, 52, 68 y 85 s desde que sales a la calle. Sirenas, gritos y patrulla aparecen durante el trayecto. No hay cambio repentino de hora ni congelación del tráfico al declararse el brote. Los incidentes no simulan física completa ni propagación de fuego.
-- Marcha de infectados a 2,55–2,71 m/s; persecución y contagio por contacto con obstáculos estáticos. Incubación 6 s y transformación 2 s.
+- 176 civiles distribuidos en ocho áreas. Se reutilizan residentes sanos fuera de vista y se reduce la frecuencia de animación de los lejanos. Los contagiados conservan su aspecto y cambian de postura, tono de piel y heridas durante la transformación.
+- El barrio comienza en calma y la huida responde a amenazas cercanas. El brote puede avanzar aunque ignores la llamada o tomes otra calle.
+- Cuatro choques dirigidos y seis incendios: 10, 23, 38, 52, 68 y 85 s desde que sales a la calle. Sirenas y patrulla aparecen durante el trayecto. No hay cambio repentino de hora ni congelación del tráfico al declararse el brote. Los incidentes no simulan física completa ni propagación de fuego.
+- Los infectados pierden visión y movilidad con el tiempo. Investigan ruidos y posiciones recordadas. Las paredes atenúan el sonido y bloquean la visión y las mordidas.
 - Las huellas de acera usan la cobertura por lotes del proyecto original en manzanas irregulares. Usar el rectángulo exterior completo cerraba calles diagonales y dejaba sin sitios de aparición al tráfico.
 - Carrocerías de misión con geometría detallada original y material estándar opaco, colores por pieza y doble cara, en ambos niveles de detalle. Sustituye el shader procedural de carrocería en la misión; el explorador lo conserva.
-- Noticias y llamada leídas con **SpeechSynthesis**, usando voces españolas/inglesas disponibles en el navegador/sistema. No hay doblaje humano grabado; sin voces compatibles se mantienen los subtítulos. Cambiar idioma selecciona la voz correspondiente; pausa, mute y reinicio cancelan la lectura. La calidad de voz depende del equipo.
-- Tres grabaciones de gruñidos CC0 de artisticdude y gritos CC0 de WuxiaScrub. Cortina musical breve **Beyond The Clouds**, Matthew Pablo, CC BY 3.0: se usa en los cambios de boletín a volumen bajo, en lugar de un bucle continuo. Los archivos están incluidos localmente y sus licencias figuran en [assets/audio/CREDITS.md](assets/audio/CREDITS.md). Teléfono, sirenas e impactos sintetizados.
+- Noticias y llamada en texto, con música para los boletines y tono de teléfono. El audio se detiene al pausar.
+- Se usan los gruñidos CC0 de artisticdude y la música **Beyond The Clouds** de Matthew Pablo, CC BY 3.0. Las atribuciones están en [assets/audio/CREDITS.md](assets/audio/CREDITS.md).
 - Salud, resistencia, navegación, pausa, victoria, derrota y reinicio.
 - Interfaz y narrativa en español e inglés. Los nombres propios permanecen.
 - **Sin armas todavía**: este episodio prueba la huida. El arma, el regreso a casa y la búsqueda completa de tu esposa son la siguiente entrega.

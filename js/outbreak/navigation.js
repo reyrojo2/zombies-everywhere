@@ -68,6 +68,19 @@ export class NavigationGrid {
     }
     return true;
   }
+  path(position, target, limit = 12000) {
+    const startPoint=this.nearest(position), endPoint=this.nearest(target);
+    if(!startPoint || !endPoint)return [];
+    const start=this.index(startPoint), end=this.index(endPoint);
+    const parents=new Map([[start,-1]]), queue=[start]; let head=0;
+    while(head<queue.length && head<limit && !parents.has(end)) {
+      const i=queue[head++];
+      for(const j of this.neighbors(i))if(this.open(j) && !parents.has(j)){parents.set(j,i);queue.push(j);}
+    }
+    if(!parents.has(end))return [];
+    const result=[];for(let i=end;i!==-1;i=parents.get(i))result.push(this.point(i));
+    return result.reverse();
+  }
   step(position, target, amount) {
     const i = this.index(position);
     if (!this.open(i)) return position;

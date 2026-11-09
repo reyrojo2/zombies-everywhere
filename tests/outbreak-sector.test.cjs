@@ -29,21 +29,22 @@ test('street incidents start gradually before hospital arrival and respect pause
 
 test('reinforcements arrive in four bounded waves and restart resets the director',async()=>{
  const {Population}=await import('../js/outbreak/population.js');
+ const {SpatialGrid}=await import('../js/outbreak/perception.js');
  const {MANHATTAN,distance}=await import('../js/outbreak/mission.js');
  class Crowd{constructor(){this.meshes=[];}begin(){}end(){}add(){}}
- class Rig{update(){}}
+ class Rig{update(){}setInfection(){}}
  class Models{reset(){}draw(){}}
  const {OutbreakActors}=loadModule(fs.readFileSync(require('node:path').join(__dirname,'../js/outbreak/actors.js'),'utf8'),{imports:{
   '../pedestrians.js':{PersonCrowd:Crowd,PersonRig:Rig},'./mission.js':{distance},'./population.js':{Population},
-  '../city-config.js':{streetZ:n=>(42-n)*80},'./zombie-model.js':{ZombieModels:Models}
+  '../city-config.js':{streetZ:n=>(42-n)*80},'./perception.js':{SpatialGrid}
  }});
  const nav={nearest:p=>p,clear:()=>true,flood(){},step:p=>p,index:()=>0,cost:[0]};
  const actors=new OutbreakActors({add(){}},nav,{getGroundHeight:()=>0},MANHATTAN);
- actors.prepare();actors.spawn();assert.equal(actors.actors.length,116);
+ actors.prepare();actors.spawn();assert.equal(actors.actors.length,MANHATTAN.civilianCount+MANHATTAN.zombieCount);
  const mission={phase:'escape',time:7,hurt(){}};
  for(const time of [7,16,25,34,100]) {mission.time=time;actors.update(.01,{position:{x:0,z:100}},mission,nav);}
- assert.equal(actors.actors.length,132);assert.equal(actors.wave,4);
- actors.prepare();assert.equal(actors.actors.length,104);assert.equal(actors.wave,0);
+ assert.equal(actors.actors.length,MANHATTAN.civilianCount+MANHATTAN.zombieCount+MANHATTAN.reinforcementCount);assert.equal(actors.wave,4);
+ actors.prepare();assert.equal(actors.actors.length,MANHATTAN.civilianCount);assert.equal(actors.wave,0);
 });
 
 test('500 nearest blocks are selected deterministically without mutating geography',()=>{
@@ -54,12 +55,14 @@ test('500 nearest blocks are selected deterministically without mutating geograp
 });
 
 test('civilian routes produce different escape directions instead of one shared queue',async()=>{
- const {Population}=await import('../js/outbreak/population.js');const {MANHATTAN,distance}=await import('../js/outbreak/mission.js');
- class Crowd{constructor(){this.meshes=[];}begin(){}end(){}add(){}}class Rig{update(){}}class Models{reset(){}draw(){}}
+ const {Population}=await import('../js/outbreak/population.js');
+ const {SpatialGrid}=await import('../js/outbreak/perception.js');const {MANHATTAN,distance}=await import('../js/outbreak/mission.js');
+ class Crowd{constructor(){this.meshes=[];}begin(){}end(){}add(){}}class Rig{update(){}setInfection(){}}class Models{reset(){}draw(){}}
  const {OutbreakActors}=loadModule(fs.readFileSync(require('node:path').join(__dirname,'../js/outbreak/actors.js'),'utf8'),{imports:{
- '../pedestrians.js':{PersonCrowd:Crowd,PersonRig:Rig},'./mission.js':{distance},'./population.js':{Population},'../city-config.js':{streetZ:n=>(42-n)*80},'./zombie-model.js':{ZombieModels:Models}}});
+ '../pedestrians.js':{PersonCrowd:Crowd,PersonRig:Rig},'./mission.js':{distance},'./population.js':{Population},'../city-config.js':{streetZ:n=>(42-n)*80},'./perception.js':{SpatialGrid}}});
  const nav={nearest:p=>p,clear:()=>true,flood(){},index:()=>0,cost:[0],step(p,t,s){const d=Math.hypot(t.x-p.x,t.z-p.z)||1;return {x:p.x+(t.x-p.x)/d*s,z:p.z+(t.z-p.z)/d*s};}};
  const actors=new OutbreakActors({add(){}},nav,{getGroundHeight:()=>0},MANHATTAN);actors.prepare();actors.spawn();
+ for(const a of actors.actors)if(a.civilian)a.state='fleeing';
  const before=actors.actors.slice(0,4).map(a=>({...a}));
  const routes=[{nav,goal:{x:10000,z:-100}},{nav,goal:{x:-10000,z:-185}},{nav,goal:{x:25,z:-10000}},{nav,goal:{x:-90,z:10000}}];
  actors.update(.1,{position:{x:1000,z:1000}},{time:1,hurt(){}},nav,routes);

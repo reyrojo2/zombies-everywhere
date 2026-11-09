@@ -75,6 +75,8 @@ function createBusDestinationTexture() {
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 
 function createTrafficSystem(scene, sidewalks, obstacles, population = {}) {
+  const nearRadius = population.fixedPaint ? 230 : NEAR_RADIUS;
+  const vehicleRadius = population.fixedPaint ? 270 : VEHICLE_RADIUS;
   const NUM_CARS = population.cars ?? 200;
   const NUM_BUSES = population.buses ?? 12;
   const NUM_PEDS = population.pedestrians ?? 340;
@@ -586,11 +588,11 @@ function createTrafficSystem(scene, sidewalks, obstacles, population = {}) {
     for (const e of edges) {
       const s = clamp((focusX - e.sx) * e.dx + (focusZ - e.sz) * e.dz, 0, e.len);
       const dx = e.sx + e.dx * s - focusX, dz = e.sz + e.dz * s - focusZ;
-      if (dx * dx + dz * dz < NEAR_RADIUS * NEAR_RADIUS) nearEdges.push(e);
+      if (dx * dx + dz * dz < nearRadius * nearRadius) nearEdges.push(e);
     }
     for (const n of nodes) {
       const dx = n.x - focusX, dz = n.z - focusZ;
-      if (n.signal && dx * dx + dz * dz < NEAR_RADIUS * NEAR_RADIUS) nearSignals.push(n);
+      if (n.signal && dx * dx + dz * dz < nearRadius * nearRadius) nearSignals.push(n);
     }
   }
 
@@ -2007,9 +2009,9 @@ function createTrafficSystem(scene, sidewalks, obstacles, population = {}) {
       const v = vehicles[vehicleCursor];
       vehicleCursor = (vehicleCursor + 1) % vehicles.length;
       const d = v.edge ? Math.hypot(v.x - focusX, v.z - focusZ) : Infinity;
-      if (d <= (jump ? NEAR_RADIUS : VEHICLE_RADIUS)) continue;
+      if (d <= (jump ? nearRadius : vehicleRadius)) continue;
       budget--;
-      spawnVehicle(v, jump ? 0 : 100, NEAR_RADIUS, !jump);
+      spawnVehicle(v, jump ? 0 : 80, nearRadius, !jump);
     }
     buildOccupancy();
     for (const m of bodyMeshes) m.count = 0;

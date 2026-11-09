@@ -985,7 +985,7 @@ class ThirdPersonControllerManager {
     const air = p.position.y - this.getGroundHeight(p.position.x, p.position.z, 'person');
     p.rig.update(dt, p.position.x, p.position.z, p.heading, personGround, this, air > 0.02 ? air : 0);
     p.crowd.begin();
-    p.crowd.add(p.rig, 0);
+    if(!this.missionDriving) p.crowd.add(p.rig, 0);
     p.crowd.end();
 
     const b = this.entities.cyclist;
@@ -1004,7 +1004,7 @@ class ThirdPersonControllerManager {
 
     if (this.activeMode === 'person') {
       this.updatePerson(dt, elapsed);
-    } else {
+    } else if (!this.missionDriving) {
       // Keep the sidewalk pedestrian walking naturally when not actively controlled
       const p = this.entities.person;
       const walkSpeed = 1.48;

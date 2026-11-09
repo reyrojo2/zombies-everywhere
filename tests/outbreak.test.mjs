@@ -70,7 +70,7 @@ test('contact infects a civilian, incubates, then converts the same actor to a s
   const p = new Population(MANHATTAN), person = p.add({ x: 0, z: 0 });
   p.add({ x: 1, z: 0 }, true); p.activate();
   const player = { x: 50, z: 0 };
-  p.update(.25, player, () => true, () => assert.fail('player is distant'));
+  for(let i=0;i<4;i++)p.update(.25, player, () => true, () => assert.fail('player is distant'));
   assert.equal(person.state, 'bitten'); assert.equal(p.infections, 1);
   assert.equal(p.infect(person), false);
   p.update(6, player, () => true, () => {}); assert.equal(person.state, 'turning');
@@ -84,9 +84,9 @@ test('conversion can propagate to another civilian, but walls block detection an
   p.add({ x: 1, z: 0 }, true); p.activate();
   const player = { x: 50, z: 0 };
   p.update(.25, player, () => false, () => {}); assert.equal(first.state, 'normal');
-  p.update(.25, player, () => true, () => {}); p.update(6, player, () => true, () => {}); p.update(2, player, () => true, () => {});
+  for(let i=0;i<4;i++)p.update(.25, player, () => true, () => {}); p.update(6, player, () => true, () => {}); p.update(2, player, () => true, () => {});
   const next = p.add({ x: -.5, z: 0 });
-  p.update(.25, player, () => true, () => {}); assert.equal(next.state, 'bitten');
+  for(let i=0;i<4;i++)p.update(.25, player, () => true, () => {}); assert.equal(next.state, 'bitten');
   assert.equal(p.infections, 2); assert.equal(p.actors.length, 3);
 });
 
@@ -141,10 +141,16 @@ test('radio requires arrival and uninterrupted nearby interaction; evacuation st
  m.tick(1,MANHATTAN.radio,false,true);assert.equal(m.radioReady,true);
 });
 
-test('hunters pursue the player instead of distant civilians, but can still bite a touching victim',()=>{
- const p=new Population(MANHATTAN),civilian=p.add({x:0,z:0});const hunter=p.add({x:2,z:0},true);p.activate();
- const player={x:30,z:0};p.update(.25,player,()=>true,()=>{});assert.equal(hunter.target,player);
- hunter.x=1;p.update(.25,player,()=>true,()=>{});assert.equal(civilian.state,'bitten');
+test('infected remember a position, lose a hidden player and telegraph bites',()=>{
+ const p=new Population(MANHATTAN),z=p.add({x:0,z:0},true);z.heading=Math.PI/2;p.activate();
+ const player={x:20,z:0};p.update(.2,player,()=>true,()=>{});
+ assert.deepEqual(z.target,{x:20,z:0});assert.notEqual(z.target,player);
+ player.x=35;p.update(.2,player,()=>false,()=>{});assert.equal(z.target.x,20);
+ p.update(8,player,()=>false,()=>{});assert.equal(z.target,null);
+ player.x=1;let bites=0;p.update(.2,player,()=>true,()=>bites++);assert.equal(bites,0);
+ player.x=40;p.update(.2,player,()=>true,()=>bites++);assert.equal(z.windup,0);
+ player.x=1;for(let i=0;i<4;i++)p.update(.2,player,()=>true,()=>bites++);
+ assert.equal(bites,1);
 });
 
 test('phone runs in the background without resetting the street clock or blocking movement',()=>{
@@ -162,22 +168,44 @@ test('ignoring a call never prevents the neighborhood outbreak',()=>{
  assert.equal(m.phase,'escape');assert.equal(m.phoneAnswered,false);assert.equal(m.playing,true);
 });
 
-test('spoken bulletins are deduplicated and mute cancels the reading',()=>{
- const oldSynthesis=globalThis.speechSynthesis,oldUtterance=globalThis.SpeechSynthesisUtterance;
- const spoken=[];let cancelled=0;
- globalThis.speechSynthesis={getVoices:()=>[{lang:'es-PE',name:'test'}],speak:u=>spoken.push(u),cancel:()=>cancelled++};
- globalThis.SpeechSynthesisUtterance=class{constructor(text){this.text=text;}};
- try{
-  const sound=new OutbreakSound({enabled:true,context:{state:'running'}});
-  sound.narrate('news0','Hospitales reportan incidentes','es');sound.narrate('news0','Hospitales reportan incidentes','es');
-  assert.equal(spoken.length,1);assert.equal(spoken[0].lang,'es-PE');
-  sound.narrate('wife0','Cuídate, por favor','es');assert.equal(spoken.length,2);
-  const before=cancelled;sound.audio.enabled=false;sound.update(.1,{phase:'phone'},[],{});assert.ok(cancelled>before);
- }finally{globalThis.speechSynthesis=oldSynthesis;globalThis.SpeechSynthesisUtterance=oldUtterance;}
+test('news and calls never invoke browser speech synthesis',()=>{
+ const old=globalThis.speechSynthesis;globalThis.speechSynthesis={speak(){assert.fail('synthetic speech');}};
+ try {
+ const sound=new OutbreakSound({enabled:true,context:{state:'running'}});sound.tone=()=>{};
+ const m=new Mission(MANHATTAN);m.start();sound.update(.1,m,[],{},null,k=>k,'es');
+ m.skipIntro();m.phase='phone';m.answerPhone();sound.update(.1,m,[],{},null,k=>k,'es');
+ } finally {globalThis.speechSynthesis=old;}
 });
 
 test('mission starts in the existing West Village residential profile',async()=>{
  const {districtAt}=await import('../js/city-config.js');
  assert.equal(districtAt(MANHATTAN.spawn.x,MANHATTAN.spawn.z),'west_village');
  assert.ok(MANHATTAN.shelters.length>1);assert.ok(MANHATTAN.hospital.x!==MANHATTAN.spawn.x);
+});
+
+test('story clock is continuous, pauses, rolls dates and resets with infection',()=>{
+ const m=new Mission({...MANHATTAN,storyStart:'2020-02-03T23:59:59Z'});m.start();
+ m.tick(2,MANHATTAN.spawn);assert.equal(m.storyDate.toISOString(),'2020-02-04T00:00:01.000Z');
+ m.paused=true;m.tick(100,MANHATTAN.spawn);assert.equal(m.elapsed,2);
+ m.paused=false;m.skipIntro();m.tick(15,MANHATTAN.spawn);assert.equal(m.bite(),true);
+ const remaining=m.infectionRemaining;m.paused=true;m.tick(60,MANHATTAN.spawn);assert.equal(m.infectionRemaining,remaining);
+ m.paused=false;m.tick(remaining,MANHATTAN.spawn);assert.equal(m.phase,'lost');assert.equal(m.lossReason,'infection');
+ const elapsed=m.elapsed;m.tick(100,MANHATTAN.spawn);assert.equal(m.elapsed,elapsed);
+ m.start();assert.equal(m.elapsed,0);assert.equal(m.infectionRemaining,null);
+});
+
+import {NoiseField,sees,SpatialGrid} from '../js/outbreak/perception.js';
+test('noise attenuates behind walls, expires, and aging reduces sight',()=>{
+ const field=new NoiseField(),a={x:0,z:0,heading:Math.PI/2};
+ field.emit({x:20,z:0},30);assert.ok(field.hear(a,()=>true));assert.equal(field.hear(a,()=>false),null);
+ field.tick(3);assert.equal(field.events.length,0);
+ assert.equal(sees(a,{x:20,z:0},()=>true),true);a.infectedAge=150;assert.equal(sees(a,{x:20,z:0},()=>true),false);
+ assert.equal(sees(a,{x:1,z:0},()=>false),false);
+});
+test('route guidance avoids blocked cells, spatial separation uses local neighbors',()=>{
+ const nav=new NavigationGrid({minX:0,minZ:0,maxX:50,maxZ:50},[{minX:20,maxX:22,minZ:0,maxZ:30}]);
+ const path=nav.path({x:9,z:9},{x:29,z:9});assert.ok(path.length>10);
+ for(let i=1;i<path.length;i++)assert.equal(nav.clear(path[i-1],path[i]),true);
+ const a={x:0,z:0},b={x:1,z:1},far={x:50,z:50};const grid=new SpatialGrid([a,b,far]);
+ assert.ok(grid.nearby(a).includes(b));assert.ok(!grid.nearby(a).includes(far));
 });

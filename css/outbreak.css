@@ -53,3 +53,7 @@ progress::-webkit-progress-bar { background:#36434c; } .ze-health::-webkit-progr
 #outbreak.ze-danger {box-shadow:inset 0 0 100px #390c1488;}
 
 #outbreak .ze-phone-answer {position:absolute;left:50%;bottom:9%;transform:translateX(-50%);background:#277b58;border:1px solid #8ad7ab;padding:12px 24px;pointer-events:auto;z-index:6;}
+
+
+.ze-clock { color:#d3e1e9;font:500 12px monospace;letter-spacing:.06em;margin-bottom:8px; }
+.ze-infection { color:#ffab88;font-weight:700;margin-bottom:6px; }

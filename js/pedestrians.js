@@ -60,7 +60,7 @@ const BONE = {
 };
 const BONE_COUNT = 15;
 // vec4s per person in the pose buffer: (quaternion) and (translation, scale) per bone, then (seed, female, girth, hair)
-const STRIDE = BONE_COUNT * 2 + 1;
+const STRIDE = BONE_COUNT * 2 + 2;
 
 // Bind pose (metres, a 1.75 m person standing at the origin facing +Z, +X on their left): legs straight down, arms
 // hanging 8 degrees out from the body
@@ -752,6 +752,7 @@ const qrot = (q, v) => v.add(cross(q.xyz, cross(q.xyz, v).add(v.mul(q.w))).mul(2
 function createPersonMaterial(pose) {
   const mat = new THREE.MeshStandardNodeMaterial({ metalness: 0 });
   const base = int(instanceIndex).mul(STRIDE);
+  const infection = varying(pose.element(base.add(STRIDE - 2)), 'vPersonInfection');
   const info = pose.element(base.add(STRIDE - 1)); // seed, female, girth, hair
 
   mat.positionNode = Fn(() => {
@@ -786,7 +787,8 @@ function createPersonMaterial(pose) {
     const q = attribute('position', 'vec3').toVar();
     const along = attribute('extra', 'vec3').z;
 
-    const skinCol = pickColorFromPalette(SKIN_COLORS, lane(17.0)).toVar();
+    const originalSkin = pickColorFromPalette(SKIN_COLORS, lane(17.0));
+    const skinCol = mix(originalSkin, originalSkin.mul(color(0x98ab9c)), infection.x.mul(.65)).toVar();
     const hairCol = pickColorFromPalette(HAIR_COLORS, lane(3.0)).toVar();
     const coatCol = mix(pickColorFromPalette(COAT_COLORS, lane(29.0)), pickColorFromPalette(COAT_COLORS_F, lane(29.0)), female).toVar();
     const shirtCol = pickColorFromPalette(SHIRT_COLORS, lane(71.0)).toVar();
@@ -859,7 +861,7 @@ function createPersonMaterial(pose) {
       .mul(sneaker);
     const shoeCol = mix(mix(upperCol, soleCol, sole), color(0xb8b4aa), laces.mul(0.6));
 
-    return mix(
+    const dressed = mix(
       mix(
         mix(
           mix(
@@ -876,6 +878,11 @@ function createPersonMaterial(pose) {
       hairPartCol,
       step(PART.HAIR - 0.5, partId)
     );
+    // Bind-space patch follows the existing skeleton, preserving clothing and identity.
+    const wound = step(abs(q.y.sub(float(1.25).add(infection.z.mul(.18)))), .09)
+      .mul(step(abs(q.x.sub(infection.z.sub(.5).mul(.3))), .10))
+      .mul(step(.08,q.z)).mul(isPart(partId, PART.BODY)).mul(infection.y);
+    return mix(dressed, color(0x642c29), wound);
   })();
 
   mat.roughnessNode = Fn(() => {
@@ -1012,7 +1019,7 @@ class PersonRig {
    *   hair (0 short .. 0.5 voluminous .. 1 long), armSwing & stride (gait personality, ~1)
    */
   constructor({ seed = 0, scale = 1, female = false, girth = 1, hair = 0.2, armSwing = 1, stride = 1 } = {}) {
-    this.seed = seed;
+    this.seed = seed; this.infection = 0;
     this.s = scale;
     this.female = female ? 1 : 0;
     this.girth = girth;
@@ -1037,6 +1044,12 @@ class PersonRig {
     this.feet = [makeFoot(1), makeFoot(-1)];
     this.pose = new Float32Array(STRIDE * 4);
     this.pose.set([seed, this.female, girth, hair], (STRIDE - 1) * 4);
+  }
+
+  setInfection(progress, wounded = false, lunge = 0) {
+    this.lunge = lunge;
+    this.infection = Math.max(0, Math.min(1, progress));
+    this.pose.set([this.infection, wounded ? 1 : 0, (Math.sin(this.seed * 17) + 1) / 2, 0], (STRIDE - 2) * 4);
   }
 
   get legLength() {
@@ -1381,13 +1394,13 @@ class PersonRig {
     const breathe = Math.sin(this.time * 1.7) * 0.008 * idle;
     _qChest.copy(_qPelvis)
       .multiply(qY(_q, -1.75 * this.pelvisYaw))
-      .multiply(qX(_q, 0.015 + 0.03 * g + 0.14 * run + breathe))
+      .multiply(qX(_q, 0.015 + 0.03 * g + 0.14 * run + breathe + this.infection * .38 + (this.lunge || 0) * .38))
       .multiply(qZ(_q, -0.8 * this.pelvisRoll));
     _chest.copy(j[BONE.CHEST]).sub(j[BONE.PELVIS]).multiplyScalar(s).applyQuaternion(_qPelvis).add(_pelvis);
     this.writeBone(BONE.CHEST, _qChest, _chest);
 
     const look = Math.sin(this.time * 0.37 + this.seed) * 0.25 * idle * idle;
-    qY(_qa, yaw + look).multiply(qX(_q, 0.05 - 0.1 * run));
+    qY(_qa, yaw + look).multiply(qX(_q, 0.05 - 0.1 * run + this.infection * .22));
     _v.copy(j[BONE.HEAD]).sub(j[BONE.CHEST]).multiplyScalar(s).applyQuaternion(_qChest).add(_chest);
     this.writeBone(BONE.HEAD, _qa, _v);
 
@@ -1395,7 +1408,7 @@ class PersonRig {
     const swingAmp = 0.42 * this.armSwing * g * (1 + run * 0.6);
     for (let i = 0; i < 2; i++) {
       const side = SIDES[i];
-      const flex = 0.06 - side * this.spreadF * swingAmp + idle * 0.02;
+      const flex = 0.06 + this.infection * (.45 + .15 * Math.sin(this.time + this.seed)) - side * this.spreadF * swingAmp + idle * 0.02;
       const abduction = 0.1 + (this.girth - 1) * 0.35 + run * 0.08;
       _shoulder.copy(j[LIMB.upperArm[i]]).sub(j[BONE.CHEST]).multiplyScalar(s).applyQuaternion(_qChest).add(_chest);
       _qUpper.copy(_qChest).multiply(qZ(_q, side * (abduction - ARM_BIND_ABDUCTION))).multiply(qX(_q, -flex));
