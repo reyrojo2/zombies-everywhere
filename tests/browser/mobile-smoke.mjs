@@ -77,6 +77,14 @@ try {
     game.controller.teleportActiveTo(p.x, p.z);
   }, key);
 
+  const capture = async (name) => {
+    const shot = await page.screenshot({ type: 'jpeg', quality: 52, scale: 'css', timeout: 20000 });
+    const data = shot.toString('base64');
+    for (let start = 0; start < data.length; start += 3500) {
+      console.log(`ZE_FRAME ${name} ${start} ${data.slice(start, start + 3500)}`);
+    }
+  };
+
   await page.goto(`http://127.0.0.1:${server.address().port}/`, { waitUntil: 'domcontentloaded' });
   await page.locator('#outbreak').waitFor({ state: 'visible', timeout: 120_000 });
   assert.deepEqual(await page.evaluate(() => ({
@@ -88,6 +96,8 @@ try {
 
   await page.locator('.ze-primary').tap();
   await phase('intro');
+  await page.waitForTimeout(600);
+  await capture('intro');
   await page.locator('.ze-skip').tap();
   await phase('errand');
   await hold('#touch-stick', () => wait(() => window.__outbreakSmoke.outbreak.controller.keys.forward > 0));
@@ -96,6 +106,8 @@ try {
 
   await page.evaluate(() => { window.__outbreakSmoke.outbreak.mission.streetTime = 5; });
   await phase('phone');
+  await page.waitForTimeout(600);
+  await capture('phone');
   await page.getByRole('button', { name: 'Contestar', exact: true }).tap();
   await wait(() => window.__outbreakSmoke.outbreak.mission.phoneAnswered);
   console.log('Touch answers the call');
@@ -103,6 +115,8 @@ try {
   await page.evaluate(() => { window.__outbreakSmoke.outbreak.mission.streetTime = 42; });
   await phase('escape');
   await teleport('pharmacy');
+  await page.waitForTimeout(600);
+  await capture('pharmacy');
   await hold('.ze-touch-context', () => objective('radio'));
   await teleport('radio');
   await page.evaluate(() => {
@@ -111,9 +125,13 @@ try {
   });
   await hold('.ze-touch-context', () => objective('relay'));
   await teleport('relay');
+  await page.waitForTimeout(600);
+  await capture('relay');
   await hold('.ze-touch-context', () => objective('shelter'));
   await teleport('shelter');
   await phase('won');
+  await page.waitForTimeout(600);
+  await capture('ending');
   await page.getByRole('button', { name: 'Volver a intentarlo' }).waitFor();
   console.log('Touch collects supplies, uses the radio and reads the notice; shelter completes the chapter');
   assert.deepEqual(pageErrors, []);
