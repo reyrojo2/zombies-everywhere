@@ -20,7 +20,8 @@ import { NYCMapSystem } from './nyc-map.js';
 import { setupSceneCulling, updateSceneCulling } from './scene-culling.js';
 import { CityAudioSystem } from './audio-system.js';
 import { OutbreakGame } from './outbreak/game.js';
-import { buildMissionGround } from './outbreak/sector.js';
+import { buildMissionGround, createStreetShadows } from './outbreak/sector.js';
+import { RenderQuality } from './outbreak/render-quality.js';
 import { MANHATTAN } from './outbreak/mission.js';
 
 const options = new URLSearchParams(location.search);
@@ -29,6 +30,7 @@ const mobileOutbreak = outbreakEnabled && (window.matchMedia('(any-pointer: coar
   (navigator.maxTouchPoints > 0 && window.matchMedia('(max-width: 900px)').matches));
 let quality = options.get('quality') || (mobileOutbreak ? 'low' : 'balanced');
 const cinematic = !outbreakEnabled;
+const renderQuality = outbreakEnabled ? new RenderQuality(mobileOutbreak, quality) : null;
 
 // js/main.js
 // Main entry point for New York City (Midtown Manhattan) in Three.js WebGPURenderer & TSL (three.js dev, see index.html)
@@ -56,7 +58,7 @@ async function initApp() {
     powerPreference: 'high-performance',
     reversedDepthBuffer: true
   });
-  renderer.setPixelRatio(cinematic || quality === 'cinematic' ? 1 : quality === 'low' ? 0.6 : 0.8);
+  renderer.setPixelRatio(renderQuality ? renderQuality.resolution(window.innerWidth, window.innerHeight) : 1);
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = cinematic;
   renderer.lighting = new ClusteredLighting(256, 32, 28, 48);
@@ -77,6 +79,7 @@ async function initApp() {
   // 2. Build Scene & Physical Atmospheric Sky / PMREM IBL / 4096x4096 Shadow Lighting
   const scene = new THREE.Scene();
   const lightingSystem = new LightingSystem(scene, renderer);
+  if (outbreakEnabled) lightingSystem.applyOutbreakMood(0);
   markInit('lighting');
 
   if (loadingStatus) {
@@ -103,14 +106,19 @@ async function initApp() {
     ...cityGrid.footprints,
     ...streetDetails.footprints,
     ...allColliders.filter((c) => !c.obb && (c.minY ?? 0) < 3.5)
-  ], outbreakEnabled ? { cars: mobileOutbreak ? 28 : 56, buses: mobileOutbreak ? 1 : 3, pedestrians: 0, fixedPaint: true } : {});
+  ], outbreakEnabled ? { cars: mobileOutbreak ? 28 : 56, buses: mobileOutbreak ? 1 : 3, pedestrians: 0, fixedPaint: true, headlightLimit: mobileOutbreak ? 16 : 32, policeLightLimit: 2 } : {});
   markInit('traffic');
   const highwayTraffic = createHighwayTraffic(scene, outbreakEnabled ? [] : cityGrid.highwayLanes);
-  if (!outbreakEnabled) buildRoadPaint(scene, trafficSystem.network);
+  const roadPaintBounds = outbreakEnabled ? {
+    minX: MANHATTAN.bounds.minX - 90, maxX: MANHATTAN.bounds.maxX + 90,
+    minZ: MANHATTAN.bounds.minZ - 90, maxZ: MANHATTAN.bounds.maxZ + 90
+  } : null;
+  buildRoadPaint(scene, trafficSystem.network, roadPaintBounds);
   markInit('roadPaint');
 
   // 4. Initialize Third-Person Controllers (Person, Car, Cyclist, Helicopter) & Multi-Camera System
   const controllerManager = new ThirdPersonControllerManager(scene, allColliders);
+  const updateStreetShadows = outbreakEnabled ? createStreetShadows(scene, controllerManager) : null;
   // Reuse teleport placement so saved players return at rest, close to their last positions.
   try {
     const saved = JSON.parse(localStorage.getItem('nyc-player-state'));
@@ -560,6 +568,10 @@ async function initApp() {
   window.addEventListener('resize', () => {
     cameraSystem.onResize(window.innerWidth, window.innerHeight);
     renderer.setSize(window.innerWidth, window.innerHeight);
+    if (renderQuality) {
+      renderQuality.resetSamples();
+      applyRenderBudget();
+    }
     placeModeIndicator();
     if (mapSystem.isFullMapOpen) {
       mapSystem.resizeFullCanvas();
@@ -573,13 +585,22 @@ async function initApp() {
   selectTime('golden');
   // the web fonts change the buttons' widths once they arrive
   if (document.fonts) document.fonts.ready.then(placeModeIndicator);
+  function applyRenderBudget() {
+    const scale = renderQuality.resolution(window.innerWidth, window.innerHeight);
+    if (Math.abs(renderer.getPixelRatio() - scale) > .001) renderer.setPixelRatio(scale);
+    const distance = renderQuality.distance;
+    if (cameraSystem.camera.far !== distance) {
+      cameraSystem.camera.far = distance;
+      cameraSystem.camera.updateProjectionMatrix();
+    }
+  }
   function applyQuality(value) {
-    quality = ['low','balanced','cinematic'].includes(value) ? value : 'balanced';
-    renderer.setPixelRatio(quality === 'low' ? (mobileOutbreak ? .5 : .6) : quality === 'balanced' ? .8 : 1);
-    // Resolution and draw distance share the same pipelines in every outbreak profile.
-    cameraSystem.camera.far = quality === 'cinematic' ? 850 : quality === 'low' ? (mobileOutbreak ? 220 : 350) : 550;
-    cameraSystem.camera.updateProjectionMatrix();
-    const url = new URL(location.href);url.searchParams.set('quality',quality);history.replaceState(null,'',url);
+    renderQuality.select(value);
+    quality = renderQuality.profile;
+    applyRenderBudget();
+    const url = new URL(location.href);
+    url.searchParams.set('quality', quality);
+    history.replaceState(null, '', url);
   }
   if(outbreakEnabled) applyQuality(quality);
   const outbreak = outbreakEnabled ? new OutbreakGame({ scene, controller: controllerManager,
@@ -687,6 +708,7 @@ async function initApp() {
   let fpsTimer = 0;
   let nextPlayerSave = 0;
   let warmedUp = false; // see the first frame below
+  let moodStep = 0;
 
   if (elFps) elFps.textContent = '60';
 
@@ -701,8 +723,16 @@ async function initApp() {
     if (!outbreak || outbreak.beforeUpdate(dt)) controllerManager.update(dt, elapsed);
     if (outbreak) {
       outbreak.update(dt);
-      if(outbreak.mission.phase==='escape' && !outbreak.atmosphere) outbreak.atmosphere=true;
-      if(outbreak.mission.phase==='intro' && outbreak.atmosphere) {selectTime('golden');outbreak.atmosphere=false;}
+      const { mission } = outbreak;
+      const mood = Math.round(Math.max(0, Math.min(1, (mission.streetTime - 14) / 145)) * 24);
+      if (mood !== moodStep) {
+        moodStep = mood;
+        lightingSystem.applyOutbreakMood(mood / 24);
+      }
+      if (mission.playing) {
+        updateStreetShadows(controllerManager.getActiveEntity(), outbreak.actors.actors, controllerManager.activeMode === 'car');
+      }
+      if (renderQuality.sample(rawDt, warmedUp && !document.hidden && mission.playing)) applyRenderBudget();
     }
     cameraSystem.update(dt, elapsed);
     if(outbreak)outbreak.phone.update(outbreak.mission,k=>outbreak.view.t(k));

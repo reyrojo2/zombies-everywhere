@@ -308,6 +308,19 @@ class LightingSystem {
     this.bakeEnvironmentMap();
   }
 
+  applyOutbreakMood(progress) {
+    // Light and haze are uniforms. Keep the sky environment and shadow pipeline resident.
+    this.sunLight.intensity = 5.05 - progress * 1.75;
+    this.hemiLight.intensity = 1.25 - progress * .20;
+    this.scene.environmentIntensity = .50 - progress * .10;
+    const density = .00115 + progress * .00145;
+    this.scene.fog.density = density;
+    this.uFogDensity.value = density;
+    this.uFogHeight.value = 140;
+    this.uSkyExposure.value = .144 - progress * .035;
+    cityUniforms.uInteriorGlow.value = .48 + progress * .29;
+  }
+
   update(focusPos) {
     // SunLightShadow automatically fits & texel-snaps its 2 cascades to the view camera frustum
     // every frame inside SunShadowNode.renderShadow(), splitting [near, far] halfway between a uniform and a

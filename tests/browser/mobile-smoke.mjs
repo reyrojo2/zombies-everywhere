@@ -35,28 +35,31 @@ try {
   const context = await browser.newContext({ ...devices['Pixel 7'], locale: 'es-PE' });
   const page = await context.newPage();
   const cdp = await context.newCDPSession(page);
-  page.on('pageerror', error => pageErrors.push(error.message));
-  page.on('console', msg => {
-    if (msg.type() === 'error' || msg.text().startsWith('[init]')) {
-      console.log('[browser]', msg.text().slice(0, 1200));
-    }
-    if (msg.type() === 'error' && /THREE\.|WebGL|GL_INVALID|shader/i.test(msg.text())) {
-      renderingErrors.push(msg.text());
-    }
-  });
-
-  // Exercise the WebGL2 fallback and expose checkpoints only in the test response.
-  await page.addInitScript(() => Object.defineProperty(navigator, 'gpu', { value: undefined }));
-  await page.route('**/js/main.js', async route => {
-    const response = await route.fetch();
-    const source = await response.text();
-    const anchor = "markInit('ui');";
-    assert.ok(source.includes(anchor));
-    await route.fulfill({
-      response,
-      body: source.replace(anchor, `${anchor}\nwindow.__outbreakSmoke = { outbreak, renderer };`)
+  const preparePage = async (page) => {
+    page.on('pageerror', error => pageErrors.push(error.message));
+    page.on('console', msg => {
+      if (msg.type() === 'error' || msg.text().startsWith('[init]')) {
+        console.log('[browser]', msg.text().slice(0, 1200));
+      }
+      if (msg.type() === 'error' && /THREE\.|WebGL|GL_INVALID|shader/i.test(msg.text())) {
+        renderingErrors.push(msg.text());
+      }
     });
-  });
+
+    // Exercise the WebGL2 fallback and expose checkpoints only in the test response.
+    await page.addInitScript(() => Object.defineProperty(navigator, 'gpu', { value: undefined }));
+    await page.route('**/js/main.js', async route => {
+      const response = await route.fetch();
+      const source = await response.text();
+      const anchor = "markInit('ui');";
+      assert.ok(source.includes(anchor));
+      await route.fulfill({
+        response,
+        body: source.replace(anchor, `${anchor}\nwindow.__outbreakSmoke = { outbreak, renderer, scene, lightingSystem };`)
+      });
+    });
+  };
+  await preparePage(page);
 
   const wait = (fn, arg, timeout = 45_000) => page.waitForFunction(fn, arg, { timeout });
   const objective = key => wait(key => window.__outbreakSmoke.outbreak.mission.objective === key, key);
@@ -97,7 +100,8 @@ try {
     }
   };
 
-  await page.goto(`http://127.0.0.1:${server.address().port}/`, { waitUntil: 'domcontentloaded' });
+  const url = `http://127.0.0.1:${server.address().port}/`;
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
   await page.locator('#outbreak').waitFor({ state: 'visible', timeout: 120_000 });
   assert.deepEqual(await page.evaluate(() => ({
     webgl: window.__outbreakSmoke.renderer.backend.isWebGLBackend,
@@ -128,6 +132,22 @@ try {
   await phase('intro');
   await page.locator('.ze-skip').tap();
   await phase('errand');
+  await wait(() => window.__outbreakSmoke.scene.getObjectByName('OutbreakContactShadows')?.count > 0);
+  const draw = await page.evaluate(() => {
+    const { scene } = window.__outbreakSmoke;
+    return {
+      roadPaint: scene.getObjectByName('RoadMarkings')?.geometry.index.count,
+      streetShadows: scene.getObjectByName('OutbreakContactShadows')?.count
+    };
+  });
+  assert.ok(draw.roadPaint > 0 && draw.streetShadows > 0, JSON.stringify(draw));
+  const settings = page.locator('.ze-quality');
+  const budget = () => page.evaluate(() => window.__outbreakSmoke.renderer.getPixelRatio());
+  const initialRatio = await budget();
+  await settings.selectOption('cinematic');
+  assert.ok(await budget() > initialRatio);
+  await phase('errand');
+  await settings.selectOption('low');
   await page.locator('#touch-controls').waitFor({ state: 'visible' });
   const overlap = await page.evaluate(() => {
     const get = selector => document.querySelector(selector).getBoundingClientRect();
@@ -137,7 +157,9 @@ try {
   assert.equal(overlap, false, 'landscape subtitles leave both control clusters clear');
   await hold('#touch-stick', () => wait(() => window.__outbreakSmoke.outbreak.controller.keys.forward > 0));
   await wait(() => !window.__outbreakSmoke.outbreak.controller.keys.forward);
+  console.log('Road paint and contact shadows render; quality changes without restarting the chapter');
   console.log('Touch joystick sends and releases movement');
+  await capture('calle');
 
   await page.evaluate(() => { window.__outbreakSmoke.outbreak.mission.streetTime = 5; });
   await phase('phone');
@@ -149,6 +171,7 @@ try {
 
   await page.evaluate(() => { window.__outbreakSmoke.outbreak.mission.streetTime = 42; });
   await phase('escape');
+  assert.ok(await page.evaluate(() => window.__outbreakSmoke.lightingSystem.uFogDensity.value > .00115));
   await teleport('pharmacy', 5.5);
   await page.getByRole('button', { name: 'Recoger', exact: true }).waitFor();
   await capture('farmacia');
@@ -177,6 +200,23 @@ try {
   await phase('won');
   await page.getByRole('button', { name: 'Volver a intentarlo' }).waitFor();
   console.log('Touch collects supplies, uses the radio and reads the notice; opening and crossing the shelter gate completes the chapter');
+  await context.close();
+  const desktopContext = await browser.newContext({ viewport: { width: 960, height: 540 }, locale: 'es-PE' });
+  const desktop = await desktopContext.newPage();
+  await preparePage(desktop);
+  await desktop.goto(url, { waitUntil: 'domcontentloaded' });
+  await desktop.locator('#outbreak').waitFor({ state: 'visible', timeout: 120_000 });
+  assert.equal(await desktop.locator('.ze-quality').inputValue(), 'balanced');
+  await desktop.locator('.ze-primary').click();
+  await desktop.locator('.ze-skip').click();
+  await desktop.waitForFunction(() => window.__outbreakSmoke.outbreak.mission.playing);
+  await desktop.keyboard.down('KeyW');
+  try {
+    await desktop.waitForFunction(() => window.__outbreakSmoke.outbreak.controller.keys.forward > 0);
+  } finally {
+    await desktop.keyboard.up('KeyW');
+  }
+  console.log('Desktop WebGL2 starts at balanced quality and responds to keyboard input');
   assert.deepEqual(pageErrors, []);
   assert.deepEqual(renderingErrors, []);
 } finally {

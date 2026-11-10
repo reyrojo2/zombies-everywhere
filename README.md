@@ -65,15 +65,15 @@ El explorador original sigue disponible con **http://localhost:8000/?mode=explor
 
 ### Rendimiento y calidad
 
-El selector aplica la calidad en el momento y mantiene el estado de la misión.
+El selector aplica el perfil en el momento y conserva el estado de la misión. Cada perfil fija un rango de resolución. Si el tiempo por fotograma sube de forma sostenida, el juego reduce la resolución y la distancia de dibujo. Las vuelve a subir por pasos cuando hay margen. También limita la cantidad de píxeles en pantallas grandes.
 
-| Perfil | Resolución interna por eje | Distancia de cámara |
+| Perfil | Escala inicial en celular / PC | Tope de escala en celular / PC |
 | --- | --- | --- |
-| Rendimiento (predeterminado en celular) | 50% en celular, 60% en PC | 220 m en celular, 350 m en PC |
-| Equilibrado (predeterminado en PC) | 80% | 550 m |
-| Alta | 100% | 850 m |
+| Rendimiento | 50% / 60% | 70% / 75% |
+| Equilibrado | 64% / 80% | 88% / 100% |
+| Alta | 76% / 100% | 100% / 118% |
 
-La historia usa renderizado directo. En PC carga hasta 500 manzanas. En celular genera el sector de la misión y un margen de 180 m alrededor. La ruta del objetivo se calcula cuando cambia el destino y se reutiliza mientras te mueves.
+La historia usa renderizado directo con pavimento texturizado, marcas viales del mapa, sombras de contacto y neblina que aumenta durante el brote. En PC carga hasta 500 manzanas. En celular genera el sector de la misión y un margen de 180 m alrededor. La ruta del objetivo se calcula cuando cambia el destino y se reutiliza mientras te mueves.
 
 ### Estructura
 
