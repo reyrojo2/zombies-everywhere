@@ -271,5 +271,10 @@ test('shelter placement rejects the roadway and keeps its full footprint and app
     assert.equal(nav.clear(start, end), true);
   }
   assert.equal(sidewalk(gate.approach.x, gate.approach.z), 'block');
+  nav.avoidShelter(gate);
+  assert.equal(nav.open(nav.index(sitePoint(gate, 0, -2))), false);
+  assert.equal(nav.open(nav.index(gate.approach)), true);
+  nav.flood(gate.approach);
+  assert.ok(nav.trace({ x: 7, z: 5 }).length > 0);
   assert.equal(shelterSite(nav, { x: 7, z: 15 }, () => null, 36), null);
 });

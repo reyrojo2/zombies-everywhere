@@ -72,6 +72,16 @@ export class NavigationGrid {
     }
     return points;
   }
+  avoidShelter(site) {
+    const sin = Math.sin(site.heading), cos = Math.cos(site.heading);
+    for (let dz = -6; dz <= 6; dz += this.cell) for (let dx = -6; dx <= 6; dx += this.cell) {
+      const index = this.index({ x: site.x + dx, z: site.z + dz });
+      if (index < 0) continue;
+      const p = this.point(index), x = p.x - site.x, z = p.z - site.z;
+      const side = x * cos - z * sin, depth = x * sin + z * cos;
+      if (Math.abs(side) <= 2.8 && depth >= -4.7 && depth <= .45) this.blocked[index] = 1;
+    }
+  }
   clear(a, b) {
     const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / (this.cell * 0.35)));
     for (let s = 0; s <= n; s++) {

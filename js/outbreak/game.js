@@ -60,6 +60,7 @@ export class OutbreakGame {
     }
     this.config.pharmacy.heading = siteHeading(this.routeNav, this.config.pharmacy, this.config.spawn, 2.9, 2);
     this.config.relay.heading = siteHeading(this.routeNav, this.config.relay, this.config.radio, .8, 1);
+    for (const shelter of this.config.shelters) this.routeNav.avoidShelter(shelter);
     // Put the first collision on a visible approach to the shuttered pharmacy.
     const pharmacy = this.config.pharmacy;
     const collision = [9, -9, 6, -6].map(x => sitePoint(pharmacy, x, 8))
@@ -228,7 +229,8 @@ export class OutbreakGame {
     const m = this.mission, pos=this.controller.getActiveEntity().position;
     const refuge=this.config.shelters.reduce((a,b)=>distance(a,pos)<distance(b,pos)?a:b);
     const objective = m.objective;
-    const target = objective === 'shelter' ? (m.openShelter || refuge.approach) : this.config[objective];
+    const shelter = m.openShelter || refuge;
+    const target = objective === 'shelter' ? shelter.approach : this.config[objective];
     const sitesVisible = !['menu', 'intro'].includes(m.phase);
     this.pharmacy.group.visible = sitesVisible;
     this.pharmacy.bag.visible = !m.hasSupplies;

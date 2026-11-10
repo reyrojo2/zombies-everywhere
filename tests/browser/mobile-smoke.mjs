@@ -80,7 +80,11 @@ try {
       p.z + distance * Math.cos(heading),
       heading + Math.PI
     );
+    const position = game.controller.getActiveEntity().position;
+    game.lastSafe = { x: position.x, y: position.y, z: position.z };
+    game.mission.previousPosition = { x: position.x, z: position.z };
     game.camera.resetForTeleport();
+    if (key === 'shelter') return { x: position.x, z: position.z };
   }, { key, distance });
 
   // Enabled only in a review run. Normal CI does not emit image data.
@@ -159,7 +163,12 @@ try {
   await page.getByRole('button', { name: 'Leer', exact: true }).waitFor();
   await capture('avisos');
   await hold('.ze-touch-context', () => objective('shelter'));
-  await teleport('shelter', 3.4);
+  const approach = await teleport('shelter', 3.4);
+  const canOpen = await page.evaluate(() => {
+    const { mission, controller } = window.__outbreakSmoke.outbreak;
+    return mission.interactionAt(controller.getActiveEntity().position) === 'shelter';
+  });
+  assert.ok(canOpen, `Expected an available gate at ${JSON.stringify(approach)}`);
   await page.getByRole('button', { name: 'Abrir', exact: true }).waitFor();
   assert.equal(await page.evaluate(() => window.__outbreakSmoke.outbreak.mission.phase), 'escape');
   await hold('.ze-touch-context', () => wait(() => window.__outbreakSmoke.outbreak.mission.doorOpening >= .95));
