@@ -1759,14 +1759,14 @@ function createRoadSurfaceMaterial() {
  * Strips thinner than ~1.5 px are widened on screen and faded to match (phone-wire AA) and dashes are box-filtered,
  * so distant markings fade out smoothly instead of breaking up and flickering. Worn, and dark & glossy in puddles.
  */
-function createRoadPaintMaterial() {
+function createRoadPaintMaterial(lite = false) {
   const mat = new THREE.MeshStandardNodeMaterial({
     vertexColors: true,
     transparent: true,
     depthWrite: false,
     metalness: 0.0
   });
-  mat.mrtNode = _transparentEffectMRT; // SSR keeps seeing the asphalt (and its puddles) underneath
+  if (!lite) mat.mrtNode = _transparentEffectMRT; // SSR keeps seeing the asphalt (and its puddles) underneath
 
   const paint = attribute('paint', 'vec3');
   const side = attribute('side', 'vec2');
@@ -1789,6 +1789,12 @@ function createRoadPaintMaterial() {
   const duty = paint.z;
   const onSoFar = (x) => floor(x).mul(duty).add(clamp(fract(x).sub(float(1.0).sub(duty).mul(0.5)), 0.0, duty));
   const dashes = onSoFar(t.add(footprint.mul(0.5))).sub(onSoFar(t.sub(footprint.mul(0.5)))).div(footprint);
+
+  if (lite) {
+    mat.opacityNode = dashes.mul(varying(float(1.0).div(widen))).mul(.78);
+    mat.roughness = .85;
+    return mat;
+  }
 
   const xz = positionWorld.xz;
   const detail = smoothstep(70.0, 15.0, length(positionWorld.sub(cameraPosition)));

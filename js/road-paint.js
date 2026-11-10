@@ -200,7 +200,7 @@ function buildRoadPaint(scene, network, bounds = null) {
   geometry.setAttribute('paint', new THREE.Float32BufferAttribute(paint, 3));
   geometry.setIndex(index);
 
-  const mesh = new THREE.Mesh(geometry, createRoadPaintMaterial());
+  const mesh = new THREE.Mesh(geometry, createRoadPaintMaterial(bounds !== null));
   mesh.name = 'RoadMarkings';
   mesh.receiveShadow = true;
   mesh.renderOrder = -1; // under the other see-through ground effects (contact shadows, headlight beams)
