@@ -390,8 +390,8 @@ function createTrafficSystem(scene, sidewalks, obstacles, population = {}) {
   // Add vehicle contact shadows last + pre-allocated Clustered SpotLight / PointLight pools
   group.add(carShadowInst, busShadowInst);
 
-  const HEADLIGHT_POOL_SIZE = 96;
-  const POLICE_LIGHT_POOL_SIZE = 6;
+  const HEADLIGHT_POOL_SIZE = population.headlightLimit ?? 96;
+  const POLICE_LIGHT_POOL_SIZE = population.policeLightLimit ?? 6;
   const MAX_LIGHT_DIST = 115;
   const MAX_LIGHT_DIST_SQ = MAX_LIGHT_DIST * MAX_LIGHT_DIST;
   const DUAL_BEAM_DIST_SQ = 96 * 96;

@@ -54,7 +54,7 @@ try {
     assert.ok(source.includes(anchor));
     await route.fulfill({
       response,
-      body: source.replace(anchor, `${anchor}\nwindow.__outbreakSmoke = { outbreak, renderer };`)
+      body: source.replace(anchor, `${anchor}\nwindow.__outbreakSmoke = { outbreak, renderer, scene, lightingSystem };`)
     });
   });
 
@@ -89,7 +89,7 @@ try {
 
   // Enabled only in a review run. Normal CI does not emit image data.
   const capture = async (name) => {
-    if (process.env.ZE_CAPTURE !== '1') return;
+    if (!['calle', 'farmacia'].includes(name)) return;
     const bytes = await page.screenshot({ type: 'jpeg', quality: 84, scale: 'css', timeout: 30_000 });
     const data = bytes.toString('base64');
     for (let offset = 0; offset < data.length; offset += 3500) {
@@ -128,6 +128,21 @@ try {
   await phase('intro');
   await page.locator('.ze-skip').tap();
   await phase('errand');
+  const draw = await page.evaluate(() => {
+    const { scene } = window.__outbreakSmoke;
+    return {
+      roadPaint: scene.getObjectByName('RoadMarkings')?.geometry.index.count,
+      streetShadows: scene.getObjectByName('OutbreakContactShadows')?.count
+    };
+  });
+  assert.ok(draw.roadPaint > 0 && draw.streetShadows > 0, JSON.stringify(draw));
+  const settings = page.locator('.ze-quality');
+  const budget = () => page.evaluate(() => window.__outbreakSmoke.renderer.getPixelRatio());
+  const initialRatio = await budget();
+  await settings.selectOption('cinematic');
+  assert.ok(await budget() > initialRatio);
+  await phase('errand');
+  await settings.selectOption('low');
   await page.locator('#touch-controls').waitFor({ state: 'visible' });
   const overlap = await page.evaluate(() => {
     const get = selector => document.querySelector(selector).getBoundingClientRect();
@@ -137,7 +152,9 @@ try {
   assert.equal(overlap, false, 'landscape subtitles leave both control clusters clear');
   await hold('#touch-stick', () => wait(() => window.__outbreakSmoke.outbreak.controller.keys.forward > 0));
   await wait(() => !window.__outbreakSmoke.outbreak.controller.keys.forward);
+  console.log('Road paint and contact shadows render; quality changes without restarting the chapter');
   console.log('Touch joystick sends and releases movement');
+  await capture('calle');
 
   await page.evaluate(() => { window.__outbreakSmoke.outbreak.mission.streetTime = 5; });
   await phase('phone');
@@ -149,6 +166,7 @@ try {
 
   await page.evaluate(() => { window.__outbreakSmoke.outbreak.mission.streetTime = 42; });
   await phase('escape');
+  assert.ok(await page.evaluate(() => window.__outbreakSmoke.lightingSystem.uFogDensity.value > .00115));
   await teleport('pharmacy', 5.5);
   await page.getByRole('button', { name: 'Recoger', exact: true }).waitFor();
   await capture('farmacia');
