@@ -43,6 +43,7 @@ test('preset and map teleports share arrival resets and mark the resolved landin
   let map;
   const environment = {
     TELEPORT_LOCATIONS,
+    outbreakEnabled: false,
     controllerManager: {
       teleportActiveTo: (...args) => { calls.push(['teleport', ...args]); return landed; }
     },

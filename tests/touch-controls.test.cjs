@@ -226,3 +226,42 @@ test('availability callback runs after visibility updates and only on an actual 
   document.dispatch('pointerdown', { pointerType: 'touch' });
   assert.deepEqual(changes, [true, false, true]);
 });
+
+test('outbreak contextual touch holds end on cancellation or when the objective changes', () => {
+  const source = readFileSync(join(__dirname, '../js/outbreak/view.js'), 'utf8');
+  const window = element();
+  const { OutbreakView } = loadModule(source, {
+    imports: { './locales.js': {} }, globals: { window }
+  });
+  const view = Object.create(OutbreakView.prototype);
+  view.t = key => key;
+  const controls = element();
+  const context = element();
+  const noise = element();
+  const fallback = element();
+  controls.querySelector = selector => selector === '.ze-touch-context' ? context : selector === '.ze-touch-noise' ? noise : fallback;
+  const holds = [], activations = [];
+  view.bindTouch(controls, {
+    onActivate: action => activations.push(action),
+    onHold: (action, held) => holds.push([action, held]),
+    onNoise: () => {}
+  });
+  const show = action => view.updateTouch({ available: true, context: action, noise: true, driving: false });
+  show('radio');
+  context.dispatch('pointerdown', { pointerId: 2 });
+  context.dispatch('pointercancel', { pointerId: 2 });
+  assert.deepEqual(holds, [['radio', true], ['radio', false]]);
+  context.dispatch('pointerdown', { pointerId: 3 });
+  show('vehicle');
+  context.dispatch('click', { detail: 1 });
+  assert.deepEqual(holds.at(-1), ['radio', false]);
+  assert.equal(context.hasPointerCapture(3), false);
+  assert.deepEqual(activations, []);
+  show('answer');
+  context.dispatch('pointerdown', { pointerId: 4 });
+  context.dispatch('click', { detail: 1 });
+  assert.deepEqual(activations, ['answer']);
+  controls.hidden = true;
+  show('answer');
+  assert.equal(context.hidden, true);
+});

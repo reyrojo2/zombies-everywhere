@@ -14,7 +14,7 @@ let bryantParkLawn;
 // js/landmarks.js
 // Custom architectural 3D models for Midtown Manhattan's iconic landmarks
 
-function buildLandmarks(scene) {
+function buildLandmarks(scene, { bounds = null } = {}) {
   const group = new THREE.Group();
   group.name = 'ManhattanLandmarks';
   const colliders = [];
@@ -1038,6 +1038,15 @@ function buildLandmarks(scene) {
   // solid masonry corners, like the procedural blocks, so no window is cut by a corner. Rotated & non-box parts (MetLife
   // wings, Flatiron prism, One WTC antiprism) keep the world-space window grid.
   group.updateMatrixWorld(true);
+  if(bounds) {
+    for(const child of [...group.children]) {
+      const box=new THREE.Box3().setFromObject(child);
+      if(box.max.x<bounds.minX || box.min.x>bounds.maxX || box.max.z<bounds.minZ || box.min.z>bounds.maxZ) group.remove(child);
+    }
+    for(let i=colliders.length-1;i>=0;i--) {
+      const c=colliders[i];if(c.maxX<bounds.minX || c.minX>bounds.maxX || c.maxZ<bounds.minZ || c.minZ>bounds.maxZ)colliders.splice(i,1);
+    }
+  }
   const facadeBoxes = new Map();
   const boxParts = [];
   group.traverse((obj) => {
