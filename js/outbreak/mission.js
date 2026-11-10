@@ -17,9 +17,8 @@ export const MANHATTAN = {
   radioArrivalSeconds: 17,
   radioHoldSeconds: 3,
   triggerRadius: 20,
-  safeRadius: 9,
   introSeconds: 48,
-  callSeconds: 24,
+  callSeconds: 20,
   maxHealth: 100,
   maxStamina: 100,
   attackDamage: 14,
@@ -37,7 +36,9 @@ export class Mission {
   reset() {
     this.phase = 'menu'; this.time = 0; this.elapsed = 0; this.infectionRemaining = null; this.lossReason = null; this.health = this.config.maxHealth;
     this.stamina = this.config.maxStamina; this.hurtCooldown = 0;
-    this.phoneAnswered=false;this.callComplete=false;this.callTime=0;this.streetTime=0;
+    this.phoneAnswered = false; this.callComplete = false; this.callTime = 0; this.streetTime = 0;
+    this.callInterruptedAt = null;
+    this.openShelter = null; this.doorOpening = 0; this.previousPosition = null;
     this.hasSupplies = false; this.radioReady = false; this.relayRead = false;
     this.actionProgress = 0; this.heldAction = null; this.radioProgress = 0;
     this.paused = false; this.exhausted = false;
@@ -51,21 +52,47 @@ export class Mission {
     if (!this.radioReady) return 'radio';
     return this.relayRead ? 'shelter' : 'relay';
   }
+  get callInterrupted() { return this.callInterruptedAt !== null && this.streetTime - this.callInterruptedAt < 6; }
+  get shelters() { return this.config.shelters || [this.config.shelter]; }
+  shelterEntranceAt(position) {
+    return this.shelters.find(shelter => {
+      const p = gateLocal(position, shelter);
+      return Math.abs(p.x) < 2.35 && p.z > .1 && p.z < 4.2;
+    });
+  }
   interactionAt(position) {
     if (!this.playing) return null;
     const key = this.objective;
-    if (key === 'shelter') return null;
+    if (key === 'shelter') {
+      const entrance = this.shelterEntranceAt(position);
+      return entrance && entrance !== this.openShelter ? 'shelter' : null;
+    }
     if (key === 'radio' && (this.phase !== 'escape' || this.time < this.config.radioArrivalSeconds)) return null;
-    return distance(position, this.config[key]) < 7 ? key : null;
+    return distance(position, this.config[key]) < (key === 'relay' ? 3.8 : 7) ? key : null;
   }
   holdSeconds(action) {
-    return action === 'radio' ? this.config.radioHoldSeconds : 1;
+    return action === 'radio' ? this.config.radioHoldSeconds : action === 'shelter' ? .55 : 1;
+  }
+  blocksGate(from, to, driving) {
+    if (!from) return false;
+    return this.shelters.some(shelter => {
+      const a = gateLocal(from, shelter), b = gateLocal(to, shelter);
+      if ((a.z > 0) === (b.z > 0)) return false;
+      const x = a.x + (b.x - a.x) * (a.z / (a.z - b.z));
+      return Math.abs(x) < 2.43 &&
+        (driving || shelter !== this.openShelter || this.doorOpening < .95 || Math.abs(x) > .95);
+    });
   }
   tick(dt, position, wantsSprint = false, interacting = false, driving = false) {
     if (this.paused || ['menu', 'won', 'lost'].includes(this.phase)) return;
     dt = Number.isFinite(dt) ? Math.max(0, dt) : 0;
     this.elapsed += dt;
     this.time += dt;
+    if (this.phase === 'secured') {
+      this.doorOpening = Math.max(0, 1 - this.time / .85);
+      if (this.time >= 1.12) this.phase = 'won';
+      return;
+    }
     if (this.infectionRemaining !== null) {
       this.infectionRemaining = Math.max(0, this.infectionRemaining - dt);
       if (this.infectionRemaining === 0) { this.phase = 'lost'; this.lossReason = 'infection'; return; }
@@ -78,7 +105,7 @@ export class Mission {
     this.streetTime += dt;
     if (this.phoneAnswered && !this.callComplete) {
       this.callTime += dt;
-      if (this.callTime >= 20) { this.callComplete = true; if(this.phase==='phone') this.phase='errand'; }
+      if (this.callTime >= this.config.callSeconds) { this.callComplete = true; if(this.phase==='phone') this.phase='errand'; }
     }
     if(this.phase==='errand' && !this.callComplete && !this.phoneAnswered && this.streetTime>=5) this.phase='phone';
     if (this.exhausted && this.stamina >= 25) this.exhausted = false;
@@ -86,6 +113,8 @@ export class Mission {
     this.stamina = Math.max(0, Math.min(this.config.maxStamina, this.stamina + dt * (sprinting ? -19 : 11)));
     if (this.stamina === 0) this.exhausted = true;
     if (['errand','phone'].includes(this.phase) && (this.streetTime >= 42 || (this.streetTime >= 22 && distance(position, this.config.hospital) <= this.config.triggerRadius))) {
+      if (this.phase === 'phone' && this.phoneAnswered && !this.callComplete) this.callInterruptedAt = this.streetTime;
+      this.callComplete = true;
       this.phase = 'escape'; this.time = 0;
     }
     const action = !driving && interacting ? this.interactionAt(position) : null;
@@ -100,14 +129,26 @@ export class Mission {
           this.health = Math.min(this.config.maxHealth, this.health + 18);
         } else if (action === 'radio') this.radioReady = true;
         else if (action === 'relay') this.relayRead = true;
+        else if (action === 'shelter') {
+          this.openShelter = this.shelterEntranceAt(position);
+          this.doorOpening = 0;
+        }
         this.actionProgress = 0;
       }
     }
     this.radioProgress = action === 'radio' ? this.actionProgress : 0;
-    if (this.phase === 'escape' && !driving && this.relayRead &&
-        (this.config.shelters || [this.config.shelter]).some(p => distance(position, p) <= this.config.safeRadius)) {
-      this.phase = 'won';
+    if (this.openShelter) {
+      this.doorOpening = Math.min(1, this.doorOpening + dt / .7);
+      if (this.phase === 'escape' && !driving && this.doorOpening >= .95 && this.previousPosition) {
+        const a = gateLocal(this.previousPosition, this.openShelter);
+        const b = gateLocal(position, this.openShelter);
+        if (a.z > 0 && b.z <= 0 && b.z > -2 && Math.abs(b.x) <= .95) {
+          this.phase = 'secured';
+          this.time = 0;
+        }
+      }
     }
+    this.previousPosition = { x: position.x, z: position.z };
   }
   get storyDate() { return new Date(Date.parse(this.config.storyStart || '2020-02-03T17:30:00Z') + this.elapsed * 1000); }
   bite() {
@@ -124,3 +165,9 @@ export class Mission {
   }
 }
 export function distance(a, b) { return Math.hypot(a.x - b.x, a.z - b.z); }
+
+export function gateLocal(position, gate) {
+  const x = position.x - gate.x, z = position.z - gate.z;
+  const sin = Math.sin(gate.heading ?? 0), cos = Math.cos(gate.heading ?? 0);
+  return { x: x * cos - z * sin, z: x * sin + z * cos };
+}

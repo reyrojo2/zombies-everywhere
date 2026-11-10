@@ -41,6 +41,7 @@ export class OutbreakIncidents {
   }
   reset() {this.time=0;this.crashed=false;this.active=false;this.group.visible=false;}
   update(dt,mission,player) {
+    if (mission.phase === 'secured' || mission.phase === 'won') return;
     this.active=['errand','phone','escape'].includes(mission.phase);this.group.visible=this.active;
     if(!this.active || mission.paused)return;
     this.time=mission.streetTime ?? mission.time;
