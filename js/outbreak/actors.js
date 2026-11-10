@@ -129,7 +129,7 @@ export class OutbreakActors {
         a.x=next.x;a.z=next.z;
       }
       const d=distance(a,pos);
-      if(d<220) {
+      if(d<(this.config.actorDrawDistance ?? 220)) {
         const rig=this.ensureRig(a);
         let progress=0;
         if(a.state==='bitten') progress=.15+.3*(1-a.timer/this.config.incubationSeconds);

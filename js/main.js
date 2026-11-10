@@ -23,8 +23,11 @@ import { OutbreakGame } from './outbreak/game.js';
 import { buildMissionGround } from './outbreak/sector.js';
 import { MANHATTAN } from './outbreak/mission.js';
 
-let quality = new URLSearchParams(location.search).get('quality') || 'balanced';
-const outbreakEnabled = new URLSearchParams(location.search).get('mode') !== 'explore';
+const options = new URLSearchParams(location.search);
+const outbreakEnabled = options.get('mode') !== 'explore';
+const mobileOutbreak = outbreakEnabled && (window.matchMedia('(any-pointer: coarse)').matches ||
+  (navigator.maxTouchPoints > 0 && window.matchMedia('(max-width: 900px)').matches));
+let quality = options.get('quality') || (mobileOutbreak ? 'low' : 'balanced');
 const cinematic = !outbreakEnabled;
 
 // js/main.js
@@ -81,7 +84,7 @@ async function initApp() {
   }
 
   // 3. Build Manhattan Geography, Iconic Landmarks, Blocks, Street Details & Traffic
-  const cityGrid = outbreakEnabled ? buildMissionGround(scene, MANHATTAN.bounds) : buildCityGrid(scene);
+  const cityGrid = outbreakEnabled ? buildMissionGround(scene, MANHATTAN.bounds, mobileOutbreak ? 180 : null) : buildCityGrid(scene);
   markInit('cityGrid');
   const boroughs = outbreakEnabled ? { colliders: [] } : buildBoroughs(scene, { sidewalks: cityGrid.sidewalks });
   markInit('boroughs');
@@ -100,7 +103,7 @@ async function initApp() {
     ...cityGrid.footprints,
     ...streetDetails.footprints,
     ...allColliders.filter((c) => !c.obb && (c.minY ?? 0) < 3.5)
-  ], outbreakEnabled ? { cars: 56, buses: 3, pedestrians: 0, fixedPaint: true } : {});
+  ], outbreakEnabled ? { cars: mobileOutbreak ? 28 : 56, buses: mobileOutbreak ? 1 : 3, pedestrians: 0, fixedPaint: true } : {});
   markInit('traffic');
   const highwayTraffic = createHighwayTraffic(scene, outbreakEnabled ? [] : cityGrid.highwayLanes);
   if (!outbreakEnabled) buildRoadPaint(scene, trafficSystem.network);
@@ -572,17 +575,17 @@ async function initApp() {
   if (document.fonts) document.fonts.ready.then(placeModeIndicator);
   function applyQuality(value) {
     quality = ['low','balanced','cinematic'].includes(value) ? value : 'balanced';
-    renderer.setPixelRatio(quality === 'low' ? .6 : quality === 'balanced' ? .8 : 1);
+    renderer.setPixelRatio(quality === 'low' ? (mobileOutbreak ? .5 : .6) : quality === 'balanced' ? .8 : 1);
     // Resolution and draw distance share the same pipelines in every outbreak profile.
-    cameraSystem.camera.far = quality === 'cinematic' ? 850 : quality === 'low' ? 350 : 550;
+    cameraSystem.camera.far = quality === 'cinematic' ? 850 : quality === 'low' ? (mobileOutbreak ? 220 : 350) : 550;
     cameraSystem.camera.updateProjectionMatrix();
     const url = new URL(location.href);url.searchParams.set('quality',quality);history.replaceState(null,'',url);
   }
   if(outbreakEnabled) applyQuality(quality);
   const outbreak = outbreakEnabled ? new OutbreakGame({ scene, controller: controllerManager,
-    camera: cameraSystem, colliders: allColliders, roadNetwork: trafficSystem.network, audio: audioSystem, onQuality: applyQuality }) : null;
+    camera: cameraSystem, colliders: allColliders, roadNetwork: trafficSystem.network, audio: audioSystem, touchControls, mobile: mobileOutbreak, onQuality: applyQuality }) : null;
   if (outbreak) {
-    touchControls.setEnabled(false);
+    touchControls.onAvailabilityChange = () => outbreak.render();
     gamepadControls.setEnabled(false);
     selectMode('person');
     // Explorer HUDs remain in the DOM for their existing modules, but cannot take focus.
@@ -727,7 +730,7 @@ async function initApp() {
     if (warmedUp) updateSceneCulling(cameraSystem.camera.position); // the warm-up frame draws every chunk
 
     // Render frame via TSL RenderPipeline (SSR + Bloom)
-    if (!warmedUp) {
+    if (!warmedUp && !mobileOutbreak) {
       // First frame = pipeline warm-up behind the loading screen, for what precompileShaders() can't reach (the shadow
       // map passes): with frustum culling off, every visible material's pipelines compile now instead of stalling the
       // first time the camera turns towards it (one chunk / shadow stand-in per shared pipeline is enough)

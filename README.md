@@ -8,7 +8,7 @@ Un 2020 alternativo y ficticio. Mientras las noticias informan de una infección
 
 Los informativos, el origen de la infección y los acontecimientos son ficción; no representan hechos de la pandemia real de COVID-19.
 
-### Ejecutar en tu PC
+### Ejecutar en PC o celular
 
 Desde la carpeta del repositorio, con Python instalado:
 
@@ -16,13 +16,14 @@ Desde la carpeta del repositorio, con Python instalado:
 python -m http.server 8000
 ```
 
-Abre **http://localhost:8000** en un navegador de escritorio con aceleración gráfica. No abras `index.html` directamente con `file://`. No hay instalación del juego, cuentas ni servidor de partidas. Hace falta conexión para descargar Three.js y otros recursos externos; el primer arranque puede tardar por la construcción de Manhattan y sus shaders.
+En la PC abre **http://localhost:8000**. Para probar en el celular, conecta ambos equipos a la misma red y abre **http://IP-DE-TU-PC:8000** en el teléfono. También puedes abrir la versión web servida por HTTPS. El juego requiere aceleración gráfica y usa WebGPU cuando está disponible, con alternativa WebGL 2. No abras `index.html` directamente con `file://`. No hay instalación del juego, cuentas ni servidor de partidas. Hace falta conexión para descargar Three.js y otros recursos externos; el primer arranque puede tardar por la construcción de Manhattan y sus shaders.
 
 1. Selecciona Español o English y pulsa **Comenzar historia**.
 2. Mira el informativo en una sala 3D: el residente está frente a la TV, se levanta, abre la puerta y sale (48 s, con opción de saltar). Tres boletines contextualizan hospital, reportes en China y alerta local en West Village. Son ilustraciones animadas procedurales, no vídeo real.
 3. Al salir ya hay vecinos; algunos huyen antes de que se declare el brote. La llamada de **Esposa** aparece a los cinco segundos. **F** o **Contestar** responde sin detener el movimiento; el celular baja en 1,5 s y la conversación sigue en segundo plano con subtítulos.
-4. El peligro progresa aunque no llegues al hospital ni contestes. Puedes tomar calles laterales. Busca la patrulla y mantén **F durante 3 s** junto a la radio; después elige entre dos refugios. Los infectados aparecen en rojo en el minimapa y los contagiados en ámbar.
-5. El HUD muestra la fecha y la hora ficticia de Nueva York. Si te muerden, tienes cuatro minutos para alcanzar un refugio antes de perder el control. Puedes reintentar al perder.
+4. Recoge la mochila de emergencia en la farmacia. Sigue la ruta hacia la radio de la patrulla y mantén la interacción durante tres segundos.
+5. La central te dirige a un punto vecinal. Allí lees una nota de tu esposa y descubres dos entradas al refugio. Elige por dónde continuar y llega a pie.
+6. El HUD muestra la fecha y la hora ficticia de Nueva York. Si te muerden, tienes seis minutos para refugiarte. Las vendas de la mochila recuperan algo de salud, pero el contagio sigue avanzando.
 
 | Control | Acción |
 | --- | --- |
@@ -31,10 +32,12 @@ Abre **http://localhost:8000** en un navegador de escritorio con aceleración gr
 | Shift | Correr; consume resistencia |
 | Espacio | Saltar |
 | Arrastrar ratón | Girar la cámara |
-| F (mantener) | Solicitar acceso al refugio por la radio de la patrulla |
+| F (mantener) | Recoger la mochila, transmitir por radio o leer el aviso |
 | E | Entrar al automóvil marcado en azul claro o salir con el automóvil detenido |
 | Q | Provocar un ruido delante de ti, con ocho segundos entre usos |
 | Esc o botón Pausar | Pausar / continuar |
+
+En el celular, arrastra el joystick para moverte y desliza sobre la calle para mover la cámara. Mantén **Correr** para acelerar a pie. **Contestar**, **Subir** y **Bajar** se activan con un toque. Mantén **Recoger**, **Radio** o **Leer** hasta completar la barra. **Distraer** hace ruido delante de ti. La vista horizontal deja más espacio para jugar.
 
 La partida también se pausa al cambiar de pestaña o perder el foco. El idioma se guarda localmente si el navegador lo permite. La misión se reinicia al recargar; no hay guardado de progreso. La resistencia agotada debe recuperar un 25% antes de volver a correr.
 
@@ -54,27 +57,23 @@ La partida también se pausa al cambiar de pestaña o perder el foco. El idioma 
 - Interfaz y narrativa en español e inglés. Los nombres propios permanecen.
 - **Sin armas todavía**: este episodio prueba la huida. El arma, el regreso a casa y la búsqueda completa de tu esposa son la siguiente entrega.
 - **Lima está anunciada, pero no es seleccionable todavía.** Tendrá un escenario y una disponibilidad de armas propios.
-- Objetivo de soporte inicial: PC, teclado y ratón; no se ha implementado el modo de supervivencia para móvil o mando.
+- La historia admite teclado y ratón en PC y controles táctiles en celular.
 
-En la misión se sustituye la multitud ambiental original por los 104 civiles del barrio, todos susceptibles al contagio. El tráfico se reduce de 200 autos y 12 buses a 24 autos y 2 buses; se desactiva el tráfico de autopistas. El explorador conserva su población original. La navegación de infectados usa obstáculos estáticos y no simula interiores, escaleras ni evasión de vehículos en movimiento.
+El perfil inicial de celular genera hasta 112 civiles, 28 autos y un bus. En PC son hasta 176 civiles, 56 autos y tres buses. Los civiles pueden contagiarse. Los infectados navegan con obstáculos estáticos.
 
 El explorador original sigue disponible con **http://localhost:8000/?mode=explore**. Conserva sus menús originales en inglés, vehículos y teletransportes. Estos accesos están deshabilitados en la misión.
 
 ### Rendimiento y calidad
 
-El selector aplica la calidad en el momento: mantiene la misión, la salud, el contagio y el audio. No navega ni reconstruye la ciudad. Activar sombras puede producir una compilación inicial de shaders. El idioma se conserva.
+El selector aplica la calidad en el momento y mantiene el estado de la misión.
 
-| Perfil | Resolución interna | Sombras y posprocesado |
+| Perfil | Resolución interna por eje | Distancia de cámara |
 | --- | --- | --- |
-| Rendimiento | 60% por eje | Sin sombras, reflejos SSR ni bloom |
-| Equilibrado (predeterminado) | 80% por eje | Sin sombras, reflejos SSR ni bloom |
-| Cinemático | 100% por eje | Sombras, reflejos SSR, bloom y tratamiento de color originales |
+| Rendimiento (predeterminado en celular) | 50% en celular, 60% en PC | 220 m en celular, 350 m en PC |
+| Equilibrado (predeterminado en PC) | 80% | 550 m |
+| Alta | 100% | 850 m |
 
-La misión selecciona exactamente las 500 manzanas más cercanas al centro del recorrido, con sus edificios originales. Restaura los monumentos dentro de ese entorno, centrados ahora en West Village. Las aceras son losas extruidas de 22 cm con textura de concreto, juntas y caras de bordillo; ya no se pinta de verde todo un bloque clasificado como parque. Las losas se agrupan por celdas de 200 m para reducir llamadas de dibujo.
-
-Las 500 manzanas permanecen residentes; la cámara y el culling por frustum/celdas limitan lo que se dibuja. El detalle arquitectónico cercano sigue usando el quadtree del proyecto original. Alcance de cámara: 350 m en Rendimiento, 550 m en Equilibrado y 850 m en Cinemático. No es streaming infinito ni descarga dinámica de edificios. La generación inicial y la primera compilación de efectos pueden tardar, especialmente en Cinemático.
-
-El selector mantiene la partida. Activar Cinemático puede compilar por primera vez sus sombras/reflejos. El mapa geográfico compartido y el grafo de tráfico siguen cargándose. El máximo de población es de 132 actores; el contagio reutiliza al civil. No se garantiza una tasa de FPS sin medir el equipo objetivo.
+La historia usa renderizado directo. En PC carga hasta 500 manzanas. En celular genera el sector de la misión y un margen de 180 m alrededor. La ruta del objetivo se calcula cuando cambia el destino y se reutiliza mientras te mueves.
 
 ### Estructura
 

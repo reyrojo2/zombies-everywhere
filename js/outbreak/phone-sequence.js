@@ -19,10 +19,11 @@ export class PhoneSequence {
     if(!visible)return;
     const camera=this.cameraSystem.camera;camera.updateMatrixWorld();
     const raise=mission.phoneAnswered?Math.max(0,1-mission.callTime/1.5):1;
-    this.group.position.set(.28,-.18-(1-raise)*.6,-.82).applyMatrix4(camera.matrixWorld);this.group.quaternion.copy(camera.quaternion);
+    const horizontalOffset = Math.min(.28, .24 * camera.aspect);
+    this.group.position.set(horizontalOffset,-.18-(1-raise)*.6,-.82).applyMatrix4(camera.matrixWorld);this.group.quaternion.copy(camera.quaternion);
     if(Math.abs(mission.time-this.last)<.08 && this.label===t('wife'))return;this.last=mission.time;this.label=t('wife');
     const c=this.ctx;c.fillStyle='#142a38';c.fillRect(0,0,512,1024);
-    c.fillStyle='#d4e2e8';c.font='24px sans-serif';c.fillText('09:41',30,45);c.fillText('LTE  ▰',390,45);
+    c.fillStyle='#d4e2e8';c.font='24px sans-serif';c.fillText(mission.storyDate.toISOString().slice(11,16),30,45);c.fillText('LTE  ▰',390,45);
     c.fillStyle='#944237';c.fillRect(20,80,472,115);c.fillStyle='#fff';c.font='22px sans-serif';
     c.fillText(t('phoneAlert'),38,120);c.font='19px sans-serif';c.fillText(t('phoneAlertDetail'),38,159);
     c.fillStyle='#527c8c';c.beginPath();c.arc(256,310,75,0,Math.PI*2);c.fill();

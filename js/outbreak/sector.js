@@ -25,8 +25,10 @@ function concreteTexture() {
   ctx.strokeStyle='#777a76';ctx.lineWidth=1;ctx.strokeRect(.5,.5,255,255);
   const map=new THREE.CanvasTexture(canvas);map.wrapS=map.wrapT=THREE.RepeatWrapping;map.colorSpace=THREE.SRGBColorSpace;map.repeat.set(.5,.5);map.anisotropy=4;return map;
 }
-export function buildMissionGround(scene, missionBounds) {
-  const blocks=selectMissionBlocks(BLOCKS,missionBounds);
+export function buildMissionGround(scene, missionBounds, margin = null) {
+  const blocks = margin === null ? selectMissionBlocks(BLOCKS, missionBounds) : BLOCKS.filter(block =>
+    intersectsSector(block, { minX: missionBounds.minX - margin, maxX: missionBounds.maxX + margin,
+      minZ: missionBounds.minZ - margin, maxZ: missionBounds.maxZ + margin }));
   const bounds={minX:Math.min(...blocks.map(b=>b.minX))-40,maxX:Math.max(...blocks.map(b=>b.maxX))+40,
     minZ:Math.min(...blocks.map(b=>b.minZ))-40,maxZ:Math.max(...blocks.map(b=>b.maxZ))+40};
   const group=new THREE.Group();group.name='ManhattanCityGrid';scene.add(group);

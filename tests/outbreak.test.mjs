@@ -9,7 +9,11 @@ test('outbreak advances away from hospital and either refuge can finish the miss
   m.tick(5,MANHATTAN.spawn);assert.equal(m.phase,'phone');assert.equal(m.playing,true);
   m.answerPhone();m.tick(20,MANHATTAN.spawn);assert.equal(m.callComplete,true);assert.equal(m.phase,'errand');
   m.tick(17,MANHATTAN.spawn);assert.equal(m.phase,'escape');
+  m.tick(1,MANHATTAN.pharmacy,false,true);assert.equal(m.hasSupplies,true);
   m.tick(20,MANHATTAN.radio,false,true);assert.equal(m.radioReady,true);
+  m.tick(.1,MANHATTAN.shelters[1]);assert.equal(m.phase,'escape');
+  m.tick(1,MANHATTAN.relay,false,true);assert.equal(m.relayRead,true);
+  m.tick(.1,MANHATTAN.shelters[1],false,false,true);assert.equal(m.phase,'escape');
   m.tick(.1,MANHATTAN.shelters[1]);assert.equal(m.phase,'won');
 });
 
@@ -129,16 +133,28 @@ test('procedural audio limits voices and releases nodes when stopped', () => {
   assert.equal(sound.voices.size,6);sound.stop();assert.equal(sound.voices.size,0);
 });
 
-test('radio requires arrival and uninterrupted nearby interaction; evacuation stays locked until then',()=>{
- const m=new Mission(MANHATTAN);m.start();m.skipIntro(); m.callComplete=true;m.tick(25,MANHATTAN.hospital);
- m.tick(10,MANHATTAN.radio,false,true);assert.equal(m.radioReady,false);
- m.tick(8,MANHATTAN.radio,false,true); // arrival has occurred
- assert.equal(m.radioReady,true);
- m.start();m.skipIntro(); m.callComplete=true;m.tick(25,MANHATTAN.hospital);m.tick(17,MANHATTAN.hospital);
- m.tick(1.5,MANHATTAN.radio,false,true);assert.equal(m.radioReady,false);
- m.tick(.1,MANHATTAN.spawn,false,true);assert.equal(m.radioProgress,0);
- m.tick(2,MANHATTAN.radio,false,true);assert.equal(m.radioReady,false);
- m.tick(1,MANHATTAN.radio,false,true);assert.equal(m.radioReady,true);
+test('chapter interactions require proximity and continuous input, and restart resets objectives', () => {
+  const m = new Mission(MANHATTAN);
+  m.start(); m.skipIntro(); m.tick(42, MANHATTAN.spawn);
+  m.tick(30, MANHATTAN.radio, false, true);
+  assert.equal(m.radioReady, false, 'collect supplies before trying the radio');
+  m.tick(.75, MANHATTAN.pharmacy, false, true);
+  m.tick(.1, MANHATTAN.pharmacy);
+  m.tick(.5, MANHATTAN.pharmacy, false, true);
+  assert.equal(m.hasSupplies, false, 'letting go resets progress');
+  m.tick(.5, MANHATTAN.pharmacy, false, true);
+  assert.equal(m.objective, 'radio');
+  m.tick(3, MANHATTAN.radio, false, true, true);
+  assert.equal(m.radioReady, false, 'cannot use patrol radio from inside the vehicle');
+  m.tick(1.5, MANHATTAN.radio, false, true);
+  m.tick(.1, MANHATTAN.spawn, false, true);
+  m.tick(2, MANHATTAN.radio, false, true);
+  assert.equal(m.radioReady, false, 'leaving the radius resets progress');
+  m.tick(1, MANHATTAN.radio, false, true);
+  assert.equal(m.objective, 'relay');
+  m.start();
+  assert.equal(m.objective, 'pharmacy');
+  assert.equal(m.actionProgress, 0);
 });
 
 test('infected remember a position, lose a hidden player and telegraph bites',()=>{
@@ -204,8 +220,13 @@ test('noise attenuates behind walls, expires, and aging reduces sight',()=>{
 });
 test('route guidance avoids blocked cells, spatial separation uses local neighbors',()=>{
  const nav=new NavigationGrid({minX:0,minZ:0,maxX:50,maxZ:50},[{minX:20,maxX:22,minZ:0,maxZ:30}]);
- const path=nav.path({x:9,z:9},{x:29,z:9});assert.ok(path.length>10);
- for(let i=1;i<path.length;i++)assert.equal(nav.clear(path[i-1],path[i]),true);
+ const start={x:9,z:9}, goal={x:29,z:9};
+ const path=nav.path(start,goal);assert.ok(path.length>10);
+ nav.flood(goal);
+ const traced=nav.trace(start);
+ assert.equal(traced.length,path.length);
+ assert.deepEqual(traced.at(-1),goal);
+ for(let i=1;i<traced.length;i++)assert.equal(nav.clear(traced[i-1],traced[i]),true);
  const a={x:0,z:0},b={x:1,z:1},far={x:50,z:50};const grid=new SpatialGrid([a,b,far]);
  assert.ok(grid.nearby(a).includes(b));assert.ok(!grid.nearby(a).includes(far));
 });

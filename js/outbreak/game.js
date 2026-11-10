@@ -9,25 +9,27 @@ import { TVIntroduction } from './tv-introduction.js';
 import { PhoneSequence } from './phone-sequence.js';
 
 export class OutbreakGame {
-  constructor({ scene, controller, camera, colliders, roadNetwork, audio, onQuality = () => {} }) {
+  constructor({ scene, controller, camera, colliders, roadNetwork, audio, touchControls, mobile = false, onQuality = () => {} }) {
+    this.touchControls = touchControls;
     this.roadNetwork=roadNetwork; this.controller = controller; this.camera = camera; this.audio = audio;
     this.sound = new OutbreakSound(audio);
     this.intro = new TVIntroduction();
     this.phone = new PhoneSequence(scene,camera);
     this.nav = new NavigationGrid(MANHATTAN.bounds, colliders);
     // Resolve authored waypoints against actual buildings, rather than assuming empty sidewalks.
-    this.config = { ...MANHATTAN };
-    for (const key of ['spawn', 'hospital', 'shelter', 'radio']) {
-      const p = this.nav.nearest(MANHATTAN[key], 35);
+    this.config = { ...MANHATTAN, ...(mobile ? { civilianCount: 112, actorDrawDistance: 125 } : {}) };
+    this.civilianNav = new NavigationGrid(MANHATTAN.bounds, colliders);
+    this.civilianNav.flood(MANHATTAN.spawn);
+    const reachable = i => this.civilianNav.cost[i] >= 0;
+    for (const key of ['spawn', 'hospital', 'shelter', 'radio', 'pharmacy', 'relay']) {
+      const p = this.nav.nearest(MANHATTAN[key], 35, reachable);
       if (!p) throw new Error(`No walkable mission waypoint: ${key}`);
       this.config[key] = { ...MANHATTAN[key], ...p };
     }
-    this.config.shelters=MANHATTAN.shelters.map(p=>this.nav.nearest(p,35)).filter(Boolean);
-    this.civilianNav = new NavigationGrid(MANHATTAN.bounds, colliders);
+    this.config.shelters = MANHATTAN.shelters.map(p => this.nav.nearest(p, 35, reachable)).filter(Boolean);
+    if (!this.config.shelters.length) this.config.shelters = [this.config.shelter];
     this.civilianNav.flood(this.config.shelter);
-    for (const key of ['spawn', 'hospital']) {
-      if (this.civilianNav.cost[this.civilianNav.index(this.config[key])] < 0) throw new Error(`Disconnected mission waypoint: ${key}`);
-    }
+    this.routeNav = new NavigationGrid(MANHATTAN.bounds, colliders);
     this.escapeRoutes=[{nav:this.civilianNav,goal:this.config.shelter}];
     for(const {x,z} of MANHATTAN.exits) {
       const nav=new NavigationGrid(MANHATTAN.bounds,colliders),goal=nav.nearest({x,z},30);
@@ -37,23 +39,43 @@ export class OutbreakGame {
     this.incidents = new OutbreakIncidents(scene,this.config);
     this.actors = new OutbreakActors(scene, this.nav, controller, this.config);
     this.markers = new THREE.Group(); scene.add(this.markers);
-    this.hospital = this.createMarker(this.config.hospital, 0xe5b45a);
+    this.pharmacy = this.createMarker(this.config.pharmacy, 0xe5b45a);
+    this.relay = this.createMarker(this.config.relay, 0x68b8ea);
+    const bag = new THREE.Mesh(new THREE.BoxGeometry(.64, .42, .38),
+      new THREE.MeshStandardMaterial({ color: 0xba6a32 }));
+    bag.position.y = this.pharmacy.children[0].position.y + .21;
+    this.pharmacy.add(bag);
+    const notice = new THREE.Mesh(new THREE.BoxGeometry(1.25, .8, .12),
+      new THREE.MeshStandardMaterial({ color: 0xd5c6a1 }));
+    notice.position.y = 1.35;
+    const post = new THREE.Mesh(new THREE.BoxGeometry(.1, 1.35, .15),
+      new THREE.MeshStandardMaterial({ color: 0x4a4135 }));
+    post.position.y = .675;
+    this.relay.add(post, notice);
     this.radio = this.createMarker(this.config.radio, 0x68b8ea);
     this.shelter = this.createMarker(this.config.shelter, 0x73e0ad);
     this.otherShelters=this.config.shelters.slice(1).map(p=>this.createMarker(p,0x73e0ad));
     this.view = new OutbreakView({ onAnswer: () => this.mission.answerPhone(), onQuality, onStart: () => this.start(), onSkip: () => this.mission.skipIntro(),
       onPause: () => this.pause(), onLanguage: () => this.updateSigns(), onSound: () => audio.setEnabled(!audio.enabled) });
-    this.updateSigns();
+    this.view.bindTouch(touchControls.root, {
+      onActivate: action => {
+        if (!this.mission.playing) return;
+        if (action === 'answer') this.mission.answerPhone();
+        else if (action === 'vehicle') this.toggleVehicle();
+      },
+      onHold: (action, held) => { this.touchInteraction = held ? action : null; },
+      onNoise: () => { if (this.mission.playing) this.distract(); }
+    });
     controller.setMode('person'); controller.teleportActiveTo(this.config.spawn.x, this.config.spawn.z, this.config.spawn.heading);
     camera.resetForTeleport();
-    this.lastSafe = { ...controller.entities.person.position }; this.uiClock = 0; this.routeClock=0;
+    this.lastSafe = { ...controller.entities.person.position }; this.uiClock = 0;
     document.body.classList.add('outbreak-mode');
     // Capture prevents explorer shortcuts (teleports, vehicles, free camera) during a mission.
     window.addEventListener('keydown', (e) => {
       if(e.code==='KeyE' && this.mission.playing && !e.repeat && !e.target.closest?.('select,input,button')){this.toggleVehicle();e.preventDefault();return;}
       if(e.code==='KeyQ' && this.mission.playing && !e.repeat && !e.target.closest?.('select,input,button')){this.distract();e.preventDefault();return;}
-      if(e.code==='KeyF' && this.mission.phase==='phone' && !this.mission.phoneAnswered){this.mission.answerPhone();e.preventDefault();return;}
-      if(e.code==='KeyF' && !e.target.closest?.('select,input')) {this.interacting=true;e.preventDefault();return;}
+      if(e.code==='KeyF' && !e.repeat && this.mission.playing && this.mission.phase==='phone' && !this.mission.phoneAnswered){this.mission.answerPhone();e.preventDefault();return;}
+      if(e.code==='KeyF' && !e.repeat && this.mission.playing && !e.target.closest?.('select,input,button')) {this.interacting=true;e.preventDefault();return;}
       if (e.code === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); if (!e.repeat) this.pause(); return; }
       if (e.target.closest?.('select,button,input')) return;
       if (/^(Digit\d|KeyM|KeyV|KeyH|KeyB|KeyN)$/.test(e.code)) { e.preventDefault(); e.stopImmediatePropagation(); }
@@ -62,7 +84,7 @@ export class OutbreakGame {
     window.addEventListener('keyup', e=>{if(e.code==='KeyF')this.interacting=false;});
     window.addEventListener('blur', () => this.pause(true));
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.pause(true); });
-    this.render();
+    this.updateSigns();
   }
   createMarker(point, color) {
     const group = new THREE.Group(); group.position.set(point.x, 0, point.z);
@@ -75,10 +97,10 @@ export class OutbreakGame {
     group.userData.sign = sign; this.markers.add(group); return group;
   }
   updateSigns() {
-    for (const [marker, key] of [[this.hospital, 'hospital'], [this.shelter, 'shelter'], [this.radio,'radio'],...this.otherShelters.map(m=>[m,'shelter'])]) {
+    for (const [marker, key] of [[this.pharmacy, 'pharmacy'], [this.relay, 'relay'], [this.shelter, 'shelter'], [this.radio,'radio'],...this.otherShelters.map(m=>[m,'shelter'])]) {
       const canvas = document.createElement('canvas'); canvas.width = 768; canvas.height = 160;
       const ctx = canvas.getContext('2d'); ctx.fillStyle = '#101b22'; ctx.fillRect(0, 0, 768, 160);
-      ctx.strokeStyle = key === 'hospital' ? '#e5b45a' : '#73e0ad'; ctx.lineWidth = 8; ctx.strokeRect(4, 4, 760, 152);
+      ctx.strokeStyle = key === 'pharmacy' ? '#e5b45a' : '#73e0ad'; ctx.lineWidth = 8; ctx.strokeRect(4, 4, 760, 152);
       ctx.fillStyle = '#ffffff'; ctx.font = 'bold 27px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(this.view.t(key), 384, 92);
       const material = marker.userData.sign.material; material.map?.dispose(); material.map = new THREE.CanvasTexture(canvas); material.needsUpdate = true;
     }
@@ -95,7 +117,7 @@ export class OutbreakGame {
     } else if(distance(person.position,car.position)<5) {
       c.setMode('car');c.missionDriving=true;c.resetInput();
     } else return;
-    this.lastSafe={...c.getActiveEntity().position};this.routeClock=0;this.camera.resetForTeleport();this.render();
+    this.lastSafe={...c.getActiveEntity().position};this.camera.resetForTeleport();this.render();
   }
   distract() {
     if(this.mission.elapsed<(this.nextDistraction || 0))return;
@@ -129,7 +151,7 @@ export class OutbreakGame {
     controller.setMode('person');
   }
   start() {
-    this.controller.missionDriving=false;this.nextDistraction=0;this.interacting=false; this.actors.prepare(); this.incidents.reset(); this.sound.reset(); this.mission.start(); this.controller.setMode('person');
+    this.touchInteraction=null; this.controller.missionDriving=false;this.nextDistraction=0;this.interacting=false; this.actors.prepare(); this.incidents.reset(); this.sound.reset(); this.mission.start(); this.controller.setMode('person');
     this.controller.teleportActiveTo(this.config.spawn.x, this.config.spawn.z, this.config.spawn.heading);
     this.camera.resetForTeleport(); this.lastSafe = { ...this.controller.entities.person.position };
     this.parkEscapeCar();
@@ -137,7 +159,7 @@ export class OutbreakGame {
   }
   pause(force = false) {
     if (['menu', 'won', 'lost'].includes(this.mission.phase)) return;
-    this.interacting=false;this.mission.paused = force || !this.mission.paused; this.sound.stop(); this.controller.resetInput(); this.render();
+    this.interacting=false;this.touchInteraction=null;this.mission.paused = force || !this.mission.paused; this.sound.stop(); this.controller.resetInput(); this.render();
   }
   beforeUpdate(dt) {
     if (!this.mission.playing) { this.controller.resetInput(); return false; }
@@ -158,16 +180,20 @@ export class OutbreakGame {
       } else this.lastSafe = { ...player.position };
     }
     const previous = m.phase;
-    m.tick(dt, player.position, !player.driving && this.controller.keys.boost && Math.abs(player.speed) > 1, this.interacting && !player.driving);
+    const objective = m.objective;
+    const touchHeld = this.touchInteraction === m.interactionAt(player.position) && this.touchInteraction != null;
+    m.tick(dt, player.position, !player.driving && this.controller.keys.boost && Math.abs(player.speed) > 1,
+      this.interacting || touchHeld, player.driving);
+    if (objective !== m.objective) {
+      this.interacting = false;
+      this.touchInteraction = null;
+      this.sound.tone(480, .25, .08);
+    }
     if (previous !== 'escape' && m.phase === 'escape') this.actors.spawn();
     if (m.playing) this.actors.update(dt, player, m, this.civilianNav, this.escapeRoutes);
     this.incidents.update(dt,m,player.position);
     this.sound.update(dt, m, this.actors.actors, player.position, this.incidents);
-    if (previous !== m.phase) { this.controller.resetInput(); this.render(); }
-    this.hospital.visible = ['menu', 'intro', 'errand', 'phone'].includes(m.phase);
-    this.shelter.visible = m.radioReady && ['escape', 'won'].includes(m.phase);
-    this.otherShelters.forEach(marker=>marker.visible=this.shelter.visible);
-    this.radio.visible = m.phase==='escape' && !m.radioReady;
+    if (previous !== m.phase || objective !== m.objective) this.render();
     this.view.root.classList.toggle('ze-hit', m.hurtCooldown > this.config.attackCooldown - 0.18);
     this.uiClock += dt;
     if (this.uiClock > 0.1) { this.uiClock = 0; this.render(); }
@@ -178,21 +204,45 @@ export class OutbreakGame {
     if (!this.view) return;
     const m = this.mission, pos=this.controller.getActiveEntity().position;
     const refuge=this.config.shelters.reduce((a,b)=>distance(a,pos)<distance(b,pos)?a:b);
-    const target=m.phase==='escape'?(m.radioReady?refuge:this.config.radio):this.config.hospital;
-    let feed = m.phase==='phone' ? (m.phoneAnswered ? (m.callTime<9?'call0':'call1') : 'phoneIncoming') : 'ready';
-    if(m.phase==='errand')feed=m.streetTime<10?'street0':m.streetTime<24?'street1':'street2';
-    if (m.phase === 'errand' && distance(pos, this.config.hospital) < 20 && m.time < 24) feed = 'waiting';
-    if (m.phase === 'escape') feed = m.time < 9 ? 'call2' : m.time < 23 ? 'cut' : 'emergency';
-    const nearest=Math.min(999,...this.actors.actors.filter(a=>a.state==='zombie').map(a=>distance(a,pos)));
-    this.routeClock-=.1;
-    if(m.playing && (this.routeClock<=0 || this.routeTarget!==target)) {
-      this.route=this.nav.path(pos,target,100000);this.routeTarget=target;this.routeClock=1;
+    const objective = m.objective;
+    const target = objective === 'shelter' ? refuge : this.config[objective];
+    const markersVisible = m.phase !== 'menu' && m.phase !== 'intro';
+    this.pharmacy.visible = markersVisible && objective === 'pharmacy';
+    this.radio.visible = markersVisible && objective === 'radio';
+    this.relay.visible = markersVisible && objective === 'relay';
+    this.shelter.visible = markersVisible && objective === 'shelter';
+    this.otherShelters.forEach(marker => marker.visible = this.shelter.visible);
+    let feed = m.streetTime < 10 ? 'street0' : m.streetTime < 24 ? 'street1' : 'street2';
+    if (m.phase === 'errand' && m.hasSupplies) feed = 'suppliesMessage';
+    if (m.phase === 'phone') feed = !m.phoneAnswered ? 'phoneIncoming' : m.callTime < 9 ? 'call0' : 'call1';
+    if (m.phase === 'escape') {
+      if (objective === 'shelter') feed = 'relayMessage';
+      else if (objective === 'relay') feed = 'dispatchMessage';
+      else if (objective === 'radio') feed = 'suppliesMessage';
+      else if (m.phoneAnswered && m.time < 9) feed = 'call2';
+      else if (m.phoneAnswered && m.time < 17) feed = 'cut';
+      else feed = 'pharmacyAlert';
     }
+    const nearest=Math.min(999,...this.actors.actors.filter(a=>a.state==='zombie').map(a=>distance(a,pos)));
+    if (m.playing && this.routeTarget !== target) {
+      this.routeNav.flood(target);
+      this.routeTarget = target;
+    }
+    this.route = m.playing ? this.routeNav.trace(pos) : [];
     this.view.route=this.route || [];
     this.view.vehiclePosition=this.controller.entities.car.position;
     this.view.vehicleNearby=distance(pos,this.controller.entities.car.position)<5;
     this.view.driving=this.controller.activeMode==='car';
-    this.view.render(m, { threat: m.playing ? nearest : 999, infections: this.actors.population.infections, distance: this.route?.length>1?(this.route.length-1)*this.nav.cell:distance(pos,target), feed, boundary: this.boundary, sound: this.audio.enabled });
-    this.view.drawMap(this.nav, this.controller.getActiveEntity(), this.actors.actors, target);
+    const touch = this.touchControls;
+    if (touch.mode !== this.controller.activeMode) touch.setMode(this.controller.activeMode);
+    if (touch.enabled !== m.playing) touch.setEnabled(m.playing);
+    const onFoot = !this.view.driving;
+    const worldAction = onFoot ? m.interactionAt(pos) : null;
+    const phone = m.phase === 'phone' && !m.phoneAnswered;
+    const vehicle = this.view.driving ? Math.abs(this.controller.getActiveEntity().speed) <= 1 : this.view.vehicleNearby;
+    const context = phone ? 'answer' : worldAction || (vehicle ? 'vehicle' : null);
+    this.view.updateTouch({ available: touch.available, context, driving: this.view.driving, noise: onFoot && m.elapsed >= (this.nextDistraction || 0) });
+    this.view.render(m, { worldAction, threat: m.playing ? nearest : 999, infections: this.actors.population.infections, distance: this.route?.length>1?(this.route.length-1)*this.nav.cell:distance(pos,target), feed, boundary: this.boundary, sound: this.audio.enabled });
+    if (m.playing) this.view.drawMap(this.nav, this.controller.getActiveEntity(), this.actors.actors, target);
   }
 }

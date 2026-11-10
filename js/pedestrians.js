@@ -906,7 +906,8 @@ class PersonCrowd {
   constructor(maxCount, { farDistance = 34, castShadow = true } = {}) {
     this.farDistance = farDistance;
     this.lods = [1, 0].map((detail) => {
-      const pose = attributeArray(maxCount * STRIDE, 'vec4').toReadOnly();
+      // WebGL2 needs a texture-backed lookup for the dynamically indexed bone poses.
+      const pose = attributeArray(maxCount * STRIDE, 'vec4').toReadOnly().setPBO(true);
       const mesh = new THREE.Mesh(buildPersonGeometry(detail), createPersonMaterial(pose));
       mesh.name = detail ? 'PeopleNear' : 'PeopleFar';
       mesh.count = 1; // one (degenerate) person until the first frame, so the pipelines compile up front

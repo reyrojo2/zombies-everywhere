@@ -1,4 +1,4 @@
-body.outbreak-mode .hud, body.outbreak-mode .popover, body.outbreak-mode #fullmap-overlay, body.outbreak-mode .touch-controls { display: none !important; }
+body.outbreak-mode .hud, body.outbreak-mode .popover, body.outbreak-mode #fullmap-overlay { display: none !important; }
 #outbreak { position:fixed; inset:0; z-index:120; color:#eee9dc; font-family:system-ui,sans-serif; pointer-events:none; }
 #outbreak [hidden] { display:none !important; }
 #outbreak button,#outbreak select,#outbreak a { pointer-events:auto; }
@@ -57,3 +57,91 @@ progress::-webkit-progress-bar { background:#36434c; } .ze-health::-webkit-progr
 
 .ze-clock { color:#d3e1e9;font:500 12px monospace;letter-spacing:.06em;margin-bottom:8px; }
 .ze-infection { color:#ffab88;font-weight:700;margin-bottom:6px; }
+
+
+.ze-progress { width:100%; height:6px; accent-color:#e5b45a; }
+body.outbreak-mode #touch-controls {
+  z-index:121;
+  left:max(12px, env(safe-area-inset-left));
+  right:max(12px, env(safe-area-inset-right));
+  bottom:max(12px, env(safe-area-inset-bottom));
+  user-select:none;
+}
+body.outbreak-mode #touch-stick { width:104px; height:104px; }
+body.outbreak-mode #touch-stick-knob { width:34px; height:34px; }
+body.outbreak-mode #touch-controls .touch-caption,
+body.outbreak-mode #touch-controls .touch-look-hint { display:none; }
+body.outbreak-mode #touch-controls .touch-actions {
+  grid-template-columns:repeat(2, 56px);
+  gap:6px;
+  padding:0;
+}
+body.outbreak-mode #touch-controls .touch-action { width:56px; height:50px; }
+body.outbreak-mode #touch-controls .touch-action:disabled { opacity:.45; }
+body.outbreak-mode #touch-controls .ze-touch-context { border-color:#e5b45a; color:#f8ce82; }
+body.outbreak-mode #touch-controls .ze-touch-context.is-pressed { color:#11191e; }
+body.outbreak-mode.touch-enabled .ze-top {
+  top:max(6px, env(safe-area-inset-top));
+  left:max(8px, env(safe-area-inset-left));
+  right:max(8px, env(safe-area-inset-right));
+  gap:6px;
+  flex-wrap:wrap;
+}
+body.outbreak-mode.touch-enabled .ze-settings { gap:3px; }
+body.outbreak-mode.touch-enabled #outbreak .ze-settings :is(button, select) {
+  min-height:44px;
+  padding:4px 6px;
+  font-size:11px;
+}
+body.outbreak-mode.touch-enabled .ze-brand { font-size:12px; }
+body.outbreak-mode.touch-enabled .ze-brand span { font-size:8px; }
+body.outbreak-mode.touch-enabled .ze-hud {
+  left:max(8px, env(safe-area-inset-left));
+  top:calc(max(6px, env(safe-area-inset-top)) + 72px);
+  width:min(62vw, 300px);
+  padding:6px 8px;
+}
+body.outbreak-mode.touch-enabled .ze-objective { font-size:12px; line-height:1.25; }
+body.outbreak-mode.touch-enabled .ze-clock { font-size:10px; margin-bottom:4px; }
+body.outbreak-mode.touch-enabled .ze-distance,
+body.outbreak-mode.touch-enabled .ze-vitals,
+body.outbreak-mode.touch-enabled .ze-threat { margin-top:3px; }
+body.outbreak-mode.touch-enabled .ze-vitals span { margin-bottom:0; }
+body.outbreak-mode.touch-enabled .ze-map {
+  right:max(8px, env(safe-area-inset-right));
+  top:calc(max(6px, env(safe-area-inset-top)) + 72px);
+  bottom:auto;
+  width:min(27vw, 122px);
+  height:auto;
+}
+body.outbreak-mode.touch-enabled .ze-feed {
+  left:max(8px, env(safe-area-inset-left));
+  right:max(8px, env(safe-area-inset-right));
+  bottom:calc(max(12px, env(safe-area-inset-bottom)) + 112px);
+  width:auto;
+  padding:6px 8px;
+}
+body.outbreak-mode.touch-enabled .ze-feed-text { font-size:12px; line-height:1.3; margin-top:4px; }
+body.outbreak-mode.touch-enabled #outbreak .ze-bulletin {
+  position:static;
+  width:min(520px, 100%);
+  height:auto;
+  min-height:0;
+  clip-path:none;
+  margin:0 0 8px;
+  padding:8px;
+  background:#0a1118e8;
+  font-size:12px;
+  line-height:1.35;
+}
+body.outbreak-mode.touch-enabled .ze-screen { align-items:flex-start; padding-top:92px; }
+@media (orientation:landscape) and (max-height:500px) {
+  body.outbreak-mode.touch-enabled .ze-hud,
+  body.outbreak-mode.touch-enabled .ze-map { top:calc(max(6px, env(safe-area-inset-top)) + 50px); }
+  body.outbreak-mode.touch-enabled .ze-feed {
+    left:max(125px, calc(env(safe-area-inset-left) + 120px));
+    right:max(134px, calc(env(safe-area-inset-right) + 126px));
+    bottom:max(14px, env(safe-area-inset-bottom));
+  }
+  body.outbreak-mode.touch-enabled .ze-screen { padding-top:58px; }
+}

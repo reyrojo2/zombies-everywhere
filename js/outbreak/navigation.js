@@ -35,13 +35,13 @@ export class NavigationGrid {
     if (i + this.width < this.blocked.length) result.push(i + this.width);
     return result;
   }
-  nearest(p, radius = 12) {
+  nearest(p, radius = 12, canUse = () => true) {
     const i = this.index(p);
-    if (this.open(i)) return this.point(i);
+    if (this.open(i) && canUse(i)) return this.point(i);
     let best = null, dist = Infinity;
     for (let z = -radius; z <= radius; z += this.cell) for (let x = -radius; x <= radius; x += this.cell) {
       const j = this.index({ x: p.x + x, z: p.z + z });
-      if (!this.open(j)) continue;
+      if (!this.open(j) || !canUse(j)) continue;
       const q = this.point(j), d = Math.hypot(q.x - p.x, q.z - p.z);
       if (d < dist) { best = q; dist = d; }
     }
@@ -60,6 +60,17 @@ export class NavigationGrid {
         this.cost[j] = this.cost[i] + 1; this.queue[tail++] = j;
       }
     }
+  }
+  trace(position) {
+    const start = this.nearest(position, 12, i => this.cost[i] >= 0);
+    if (!start) return [];
+    const points = [start];
+    let i = this.index(start);
+    while (this.cost[i] > 0) {
+      i = this.neighbors(i).find(j => this.cost[j] === this.cost[i] - 1);
+      points.push(this.point(i));
+    }
+    return points;
   }
   clear(a, b) {
     const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / (this.cell * 0.35)));
