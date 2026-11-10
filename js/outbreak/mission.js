@@ -52,6 +52,7 @@ export class Mission {
     if (!this.radioReady) return 'radio';
     return this.relayRead ? 'shelter' : 'relay';
   }
+  get callInterrupted() { return this.callInterruptedAt !== null && this.streetTime - this.callInterruptedAt < 6; }
   get shelters() { return this.config.shelters || [this.config.shelter]; }
   shelterEntranceAt(position) {
     return this.shelters.find(shelter => {
@@ -73,7 +74,7 @@ export class Mission {
     return action === 'radio' ? this.config.radioHoldSeconds : action === 'shelter' ? .55 : 1;
   }
   blocksGate(from, to, driving) {
-    if (!this.relayRead || !from) return false;
+    if (!from) return false;
     return this.shelters.some(shelter => {
       const a = gateLocal(from, shelter), b = gateLocal(to, shelter);
       if ((a.z > 0) === (b.z > 0)) return false;

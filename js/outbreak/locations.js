@@ -56,7 +56,9 @@ export function createPharmacy(point, groundHeight) {
   box(group, [.25, 2.65, .16], [2.22, 1.32, -1.35], 0x242a29);
   const writeSign = sign(group, 5.16, .56, [0, 2.85, -1.41], '#19372f', 'FARMACIA', '#a3d396');
   const bag = new THREE.Group();
-  bag.position.set(0, 0, -.5);
+  bag.position.set(0, .42, -.82);
+  box(group, [1.02, .12, .55], [0, .36, -.82], 0x50463c);
+  for (const side of [-1, 1]) box(group, [.09, .33, .35], [side * .39, .165, -.82], 0x423930);
   box(bag, [.63, .39, .32], [0, .2, 0], 0xa9432d);
   box(bag, [.51, .05, .025], [0, .27, .17], 0xdbb76f);
   box(bag, [.21, .035, .1], [0, .43, 0], 0x292b27);
@@ -94,7 +96,7 @@ export function createShelterGate(point, groundHeight) {
   const lamp = new THREE.Mesh(new THREE.BoxGeometry(.86, .10, .12), new THREE.MeshBasicMaterial({ color: 0xe4c784 }));
   lamp.position.set(0, 2.39, -.46);
   group.add(lamp);
-  const writeSign = sign(group, 3.1, .44, [0, 2.82, .12], '#204136', 'REFUGIO', '#8de1b0');
+  const writeSign = sign(group, 3.1, .44, [0, 2.95, .205], '#204136', 'REFUGIO', '#8de1b0');
   return {
     group: place(group, point, groundHeight),
     writeSign,

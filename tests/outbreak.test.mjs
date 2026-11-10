@@ -120,7 +120,7 @@ test('phone and disconnect cues fire on state transitions, with silence during p
   const mission = { phase:'phone', phoneAnswered:false, time:0, paused:false, config:MANHATTAN };
   sound.update(.1,mission,[],{x:0,z:0}); sound.update(.1,mission,[],{x:0,z:0});
   assert.equal(cues.length,2); // two frequencies, once
-  mission.phase='escape';mission.time=10;sound.update(.1,mission,[],{x:0,z:0});
+  mission.phase='escape';mission.callInterrupted=true;mission.time=10;sound.update(.1,mission,[],{x:0,z:0});
   assert.ok(cues.length>=3);
   const beforePause=cues.length;
   mission.paused=true;mission.time=0;sound.update(.1,mission,[],{x:0,z:0});assert.equal(cues.length,beforePause);

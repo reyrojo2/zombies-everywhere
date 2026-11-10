@@ -22,7 +22,7 @@ En la PC abre **http://localhost:8000**. Para probar en el celular, conecta ambo
 2. Mira el informativo en una sala 3D: el residente está frente a la TV, se levanta, abre la puerta y sale (48 s, con opción de saltar). Tres boletines contextualizan hospital, reportes en China y alerta local en West Village. Son ilustraciones animadas procedurales, no vídeo real.
 3. Al salir ya hay vecinos; algunos huyen antes de que se declare el brote. La llamada de **Esposa** aparece a los cinco segundos. **F** o **Contestar** responde sin detener el movimiento; el celular baja en 1,5 s y la conversación sigue en segundo plano con subtítulos.
 4. Recoge la mochila de emergencia en la farmacia. Sigue la ruta hacia la radio de la patrulla y mantén la interacción durante tres segundos.
-5. La central te dirige a un punto vecinal. Allí lees una nota de tu esposa y descubres dos entradas al refugio. Elige por dónde continuar y llega a pie.
+5. La central te dirige a un punto vecinal. Allí lees una nota de tu esposa y descubres dos entradas al refugio. Elige por dónde continuar, abre la puerta y crúzala a pie. La puerta se cierra detrás de ti.
 6. El HUD muestra la fecha y la hora ficticia de Nueva York. Si te muerden, tienes seis minutos para refugiarte. Las vendas de la mochila recuperan algo de salud, pero el contagio sigue avanzando.
 
 | Control | Acción |
@@ -37,7 +37,7 @@ En la PC abre **http://localhost:8000**. Para probar en el celular, conecta ambo
 | Q | Provocar un ruido delante de ti, con ocho segundos entre usos |
 | Esc o botón Pausar | Pausar / continuar |
 
-En el celular, arrastra el joystick para moverte y desliza sobre la calle para mover la cámara. Mantén **Correr** para acelerar a pie. **Contestar**, **Subir** y **Bajar** se activan con un toque. Mantén **Recoger**, **Radio** o **Leer** hasta completar la barra. **Distraer** hace ruido delante de ti. La vista horizontal deja más espacio para jugar.
+En el celular, arrastra el joystick para moverte y desliza sobre la calle para mover la cámara. Mantén **Correr** para acelerar a pie. **Contestar**, **Subir** y **Bajar** se activan con un toque. Mantén **Recoger**, **Radio**, **Leer** o **Abrir** hasta completar la barra. **Distraer** hace ruido delante de ti. La vista horizontal deja más espacio para jugar.
 
 La partida también se pausa al cambiar de pestaña o perder el foco. El idioma se guarda localmente si el navegador lo permite. La misión se reinicia al recargar; no hay guardado de progreso. La resistencia agotada debe recuperar un 25% antes de volver a correr.
 

@@ -237,11 +237,10 @@ export class OutbreakGame {
     if (m.phase === 'errand' && m.hasSupplies) feed = 'suppliesMessage';
     if (m.phase === 'phone') feed = !m.phoneAnswered ? 'phoneIncoming' : m.callTime < 9 ? 'call0' : 'call1';
     if (m.phase === 'escape') {
-      if (m.callInterruptedAt !== null && m.streetTime - m.callInterruptedAt < 6) feed = 'cut';
-      else if (objective === 'shelter') feed = m.openShelter ? 'doorOpen' : 'relayMessage';
+      if (objective === 'shelter') feed = m.openShelter ? 'doorOpen' : 'relayMessage';
       else if (objective === 'relay') feed = 'dispatchMessage';
       else if (objective === 'radio') feed = 'suppliesMessage';
-      else feed = 'pharmacyAlert';
+      else feed = m.callInterrupted ? 'cut' : 'pharmacyAlert';
     }
     const nearest=Math.min(999,...this.actors.actors.filter(a=>a.state==='zombie').map(a=>distance(a,pos)));
     if (m.playing && this.routeTarget !== target) {
