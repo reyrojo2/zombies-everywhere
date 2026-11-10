@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Mission, MANHATTAN } from '../js/outbreak/mission.js';
-import { NavigationGrid } from '../js/outbreak/navigation.js';
+import { NavigationGrid, shelterSite, sitePoint } from '../js/outbreak/navigation.js';
 import { MESSAGES, getLanguage } from '../js/outbreak/locales.js';
 
 test('outbreak advances away from hospital and either refuge can finish the mission', () => {
@@ -11,10 +11,19 @@ test('outbreak advances away from hospital and either refuge can finish the miss
   m.tick(17,MANHATTAN.spawn);assert.equal(m.phase,'escape');
   m.tick(1,MANHATTAN.pharmacy,false,true);assert.equal(m.hasSupplies,true);
   m.tick(20,MANHATTAN.radio,false,true);assert.equal(m.radioReady,true);
-  m.tick(.1,MANHATTAN.shelters[1]);assert.equal(m.phase,'escape');
+  const gate = MANHATTAN.shelters[1], approach = { x: gate.x, z: gate.z + 2 }, inside = { x: gate.x, z: gate.z - 1 };
+  m.tick(.1,approach);assert.equal(m.phase,'escape');
   m.tick(1,MANHATTAN.relay,false,true);assert.equal(m.relayRead,true);
-  m.tick(.1,MANHATTAN.shelters[1],false,false,true);assert.equal(m.phase,'escape');
-  m.tick(.1,MANHATTAN.shelters[1]);assert.equal(m.phase,'won');
+  assert.equal(m.blocksGate(approach, inside, false), true);
+  m.tick(1,approach,false,true,true);assert.equal(m.openShelter,null);
+  m.tick(.55,approach,false,true);
+  m.tick(.7,approach);
+  assert.equal(m.openShelter,gate);
+  assert.equal(m.blocksGate(approach,inside,true),true);
+  assert.equal(m.blocksGate(approach,inside,false),false);
+  m.tick(.1,inside);
+  assert.equal(m.phase,'secured');
+  m.tick(1.2,inside);assert.equal(m.phase,'won');
 });
 
 test('pause freezes timers and damage; damage has shared invulnerability; restart clears state', () => {
@@ -111,7 +120,7 @@ test('phone and disconnect cues fire on state transitions, with silence during p
   const mission = { phase:'phone', phoneAnswered:false, time:0, paused:false, config:MANHATTAN };
   sound.update(.1,mission,[],{x:0,z:0}); sound.update(.1,mission,[],{x:0,z:0});
   assert.equal(cues.length,2); // two frequencies, once
-  mission.phase='escape';mission.time=10;sound.update(.1,mission,[],{x:0,z:0});
+  mission.phase='escape';mission.callInterrupted=true;mission.time=10;sound.update(.1,mission,[],{x:0,z:0});
   assert.ok(cues.length>=3);
   const beforePause=cues.length;
   mission.paused=true;mission.time=0;sound.update(.1,mission,[],{x:0,z:0});assert.equal(cues.length,beforePause);
@@ -229,4 +238,43 @@ test('route guidance avoids blocked cells, spatial separation uses local neighbo
  for(let i=1;i<traced.length;i++)assert.equal(nav.clear(traced[i-1],traced[i]),true);
  const a={x:0,z:0},b={x:1,z:1},far={x:50,z:50};const grid=new SpatialGrid([a,b,far]);
  assert.ok(grid.nearby(a).includes(b));assert.ok(!grid.nearby(a).includes(far));
+});
+
+
+test('only a call active at the outbreak can be interrupted', () => {
+  const complete = new Mission(MANHATTAN);
+  complete.start(); complete.skipIntro(); complete.tick(5, MANHATTAN.spawn); complete.answerPhone();
+  complete.tick(21, MANHATTAN.spawn); complete.tick(17, MANHATTAN.spawn);
+  assert.equal(complete.phase, 'escape');
+  assert.equal(complete.callInterruptedAt, null);
+
+  const active = new Mission(MANHATTAN);
+  active.start(); active.skipIntro(); active.tick(5, MANHATTAN.spawn); active.answerPhone();
+  active.tick(17, MANHATTAN.hospital);
+  assert.equal(active.phase, 'escape');
+  assert.equal(active.callInterruptedAt, 22);
+});
+
+
+test('shelter placement rejects the roadway and keeps its full footprint and approach on the same curb island', () => {
+  const nav = new NavigationGrid({ minX: 0, maxX: 50, minZ: 0, maxZ: 50 }, [
+    { minX: 12, maxX: 28, minZ: 12, maxZ: 32 }
+  ]);
+  nav.flood({ x: 7, z: 5 });
+  const sidewalk = (x, z) => x >= 10 && x <= 40 && z >= 8 && z <= 42 ? 'block' : null;
+  const gate = shelterSite(nav, { x: 7, z: 15 }, sidewalk, 36);
+  assert.ok(gate);
+  for (const x of [-2.55, 0, 2.55]) {
+    const start = sitePoint(gate, x, -4.45), end = sitePoint(gate, x, .3);
+    assert.equal(sidewalk(start.x, start.z), 'block');
+    assert.equal(sidewalk(end.x, end.z), 'block');
+    assert.equal(nav.clear(start, end), true);
+  }
+  assert.equal(sidewalk(gate.approach.x, gate.approach.z), 'block');
+  nav.avoidShelter(gate);
+  assert.equal(nav.open(nav.index(sitePoint(gate, 0, -2))), false);
+  assert.equal(nav.open(nav.index(gate.approach)), true);
+  nav.flood(gate.approach);
+  assert.ok(nav.trace({ x: 7, z: 5 }).length > 0);
+  assert.equal(shelterSite(nav, { x: 7, z: 15 }, () => null, 36), null);
 });

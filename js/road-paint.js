@@ -12,7 +12,7 @@ const YELLOW = new THREE.Color(0xe8ad22);
 const GREEN = new THREE.Color(0x2a8a4e);
 const HEIGHT = 0.012; // above the asphalt
 
-function buildRoadPaint(scene, network) {
+function buildRoadPaint(scene, network, bounds = null) {
   const position = [];
   const side = [];
   const paint = [];
@@ -59,6 +59,11 @@ function buildRoadPaint(scene, network) {
   // The one or two directed edges of each road between a pair of intersections
   const roads = new Map();
   for (const e of network.paintEdges || network.edges) {
+    if (bounds) {
+      const endX = e.sx + e.dx * e.len, endZ = e.sz + e.dz * e.len;
+      if (Math.max(e.sx, endX) < bounds.minX || Math.min(e.sx, endX) > bounds.maxX ||
+          Math.max(e.sz, endZ) < bounds.minZ || Math.min(e.sz, endZ) > bounds.maxZ) continue;
+    }
     const key = Math.min(e.from.id, e.to.id) * 65536 + Math.max(e.from.id, e.to.id);
     if (roads.has(key)) roads.get(key).push(e);
     else roads.set(key, [e]);
@@ -195,7 +200,7 @@ function buildRoadPaint(scene, network) {
   geometry.setAttribute('paint', new THREE.Float32BufferAttribute(paint, 3));
   geometry.setIndex(index);
 
-  const mesh = new THREE.Mesh(geometry, createRoadPaintMaterial());
+  const mesh = new THREE.Mesh(geometry, createRoadPaintMaterial(bounds !== null));
   mesh.name = 'RoadMarkings';
   mesh.receiveShadow = true;
   mesh.renderOrder = -1; // under the other see-through ground effects (contact shadows, headlight beams)

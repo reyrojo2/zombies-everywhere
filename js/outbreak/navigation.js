@@ -72,6 +72,16 @@ export class NavigationGrid {
     }
     return points;
   }
+  avoidShelter(site) {
+    const sin = Math.sin(site.heading), cos = Math.cos(site.heading);
+    for (let dz = -6; dz <= 6; dz += this.cell) for (let dx = -6; dx <= 6; dx += this.cell) {
+      const index = this.index({ x: site.x + dx, z: site.z + dz });
+      if (index < 0) continue;
+      const p = this.point(index), x = p.x - site.x, z = p.z - site.z;
+      const side = x * cos - z * sin, depth = x * sin + z * cos;
+      if (Math.abs(side) <= 2.8 && depth >= -4.7 && depth <= .45) this.blocked[index] = 1;
+    }
+  }
   clear(a, b) {
     const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / (this.cell * 0.35)));
     for (let s = 0; s <= n; s++) {
@@ -109,4 +119,46 @@ export class NavigationGrid {
     const f = Math.min(1, amount / d), p = { x: position.x + (goal.x - position.x) * f, z: position.z + (goal.z - position.z) * f };
     return this.clear(position, p) ? p : position;
   }
+}
+
+
+export function sitePoint(point, x, z) {
+  const sin = Math.sin(point.heading), cos = Math.cos(point.heading);
+  return { x: point.x + x * cos + z * sin, z: point.z - x * sin + z * cos };
+}
+
+// The shelter and its approach must share a curb island with no building collision.
+export function shelterSite(nav, seed, surfaceAt, radius = 120) {
+  const candidates = [];
+  const minX = Math.max(nav.bounds.minX + 6, seed.x - radius);
+  const maxX = Math.min(nav.bounds.maxX - 6, seed.x + radius);
+  const minZ = Math.max(nav.bounds.minZ + 6, seed.z - radius);
+  const maxZ = Math.min(nav.bounds.maxZ - 6, seed.z + radius);
+  for (let z = minZ; z <= maxZ; z += 2) for (let x = minX; x <= maxX; x += 2) {
+    const i = nav.index({ x, z });
+    if (!nav.open(i) || nav.cost[i] < 0) continue;
+    const surface = surfaceAt(x, z);
+    if (!surface) continue;
+    const distance = Math.hypot(x - seed.x, z - seed.z);
+    if (distance <= radius) candidates.push({ x, z, distance, surface });
+  }
+  candidates.sort((a, b) => a.distance - b.distance);
+  for (const { x, z, surface } of candidates) {
+    for (let i = 0; i < 16; i++) {
+      const gate = { x, z, heading: i * Math.PI / 8 };
+      const at = (x, z) => sitePoint(gate, x, z);
+      const inside = point => surfaceAt(point.x, point.z) === surface;
+      const approaches = [-.9, 0, .9].every(x => {
+        const front = at(x, 4.1);
+        return [at(x, 0), at(x, 2), front].every(inside) && nav.clear(at(x, 0), front);
+      });
+      if (!approaches) continue;
+      const fits = [-2.55, -1.3, 0, 1.3, 2.55].every(x => {
+        const back = at(x, -4.45), front = at(x, .3);
+        return [back, at(x, -3), at(x, -1.5), front].every(inside) && nav.clear(back, front);
+      });
+      if (fits) return { ...gate, approach: at(0, 3.4) };
+    }
+  }
+  return null;
 }

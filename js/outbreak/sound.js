@@ -63,7 +63,7 @@ export class OutbreakSound {
     this.loadSamples();
     const bulletin=Math.min(2,Math.floor(mission.time/14));
     const cue=mission.phase==='intro'?`news${bulletin}`:
-      mission.phase==='phone'?(mission.phoneAnswered?'call':'phone'):mission.phase==='errand'?'street':mission.time<9?'alarm':mission.time<23?'disconnect':'escape';
+      mission.phase==='phone'?(mission.phoneAnswered?'call':'phone'):mission.phase==='errand'?'street':mission.callInterrupted?'disconnect':mission.time<3?'alarm':'escape';
     if(cue!==this.lastCue) {
       this.lastCue=cue;
 
