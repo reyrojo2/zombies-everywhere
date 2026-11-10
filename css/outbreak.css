@@ -135,13 +135,29 @@ body.outbreak-mode.touch-enabled #outbreak .ze-bulletin {
   line-height:1.35;
 }
 body.outbreak-mode.touch-enabled .ze-screen { align-items:flex-start; padding-top:92px; }
+.ze-rotate-hint { display:none; }
+@media (orientation:portrait) {
+  body.outbreak-mode.touch-enabled #outbreak[data-phase="menu"] .ze-rotate-hint {
+    display:block; color:#e5b45a; font-size:12px; margin:12px 0;
+  }
+}
 @media (orientation:landscape) and (max-height:500px) {
+  body.outbreak-mode.touch-enabled .ze-top { flex-wrap:nowrap; }
+  body.outbreak-mode.touch-enabled .ze-hud { width:clamp(180px, 28vw, 258px); }
+  body.outbreak-mode.touch-enabled .ze-map { width:clamp(78px, 13vw, 110px); }
+  body.outbreak-mode #touch-stick { width:clamp(78px, 24vh, 104px); height:clamp(78px, 24vh, 104px); }
+  body.outbreak-mode #touch-controls .ze-touch-context { grid-area:1 / 1; }
+  body.outbreak-mode #touch-controls [data-touch-action="up"] { grid-area:1 / 2; }
+  body.outbreak-mode #touch-controls .ze-touch-noise { grid-area:2 / 1; }
+  body.outbreak-mode #touch-controls [data-touch-action="boost"] { grid-area:2 / 2; }
   body.outbreak-mode.touch-enabled .ze-hud,
   body.outbreak-mode.touch-enabled .ze-map { top:calc(max(6px, env(safe-area-inset-top)) + 50px); }
   body.outbreak-mode.touch-enabled .ze-feed {
     left:max(125px, calc(env(safe-area-inset-left) + 120px));
     right:max(134px, calc(env(safe-area-inset-right) + 126px));
-    bottom:max(14px, env(safe-area-inset-bottom));
+    bottom:max(12px, env(safe-area-inset-bottom));
+    max-width:480px;
+    margin-inline:auto;
   }
   body.outbreak-mode.touch-enabled .ze-screen { padding-top:58px; }
 }

@@ -1,6 +1,7 @@
 import * as THREE from 'three/webgpu';
 import { Mission, MANHATTAN, distance } from './mission.js';
-import { NavigationGrid } from './navigation.js';
+import { blockAt } from '../city-config.js';
+import { NavigationGrid, shelterSite, sitePoint } from './navigation.js';
 import { OutbreakActors } from './actors.js';
 import { OutbreakView } from './view.js';
 import { OutbreakSound } from './sound.js';
@@ -8,11 +9,6 @@ import { OutbreakIncidents } from './incidents.js';
 import { TVIntroduction } from './tv-introduction.js';
 import { PhoneSequence } from './phone-sequence.js';
 import { createPharmacy, createNoticeBoard, createShelterGate } from './locations.js';
-
-function sitePoint(point, x, z) {
-  const sin = Math.sin(point.heading), cos = Math.cos(point.heading);
-  return { x: point.x + x * cos + z * sin, z: point.z - x * sin + z * cos };
-}
 
 function siteHeading(nav, point, from, width, depth) {
   nav.flood(point);
@@ -41,13 +37,20 @@ export class OutbreakGame {
     this.civilianNav = new NavigationGrid(MANHATTAN.bounds, colliders);
     this.civilianNav.flood(MANHATTAN.spawn);
     const reachable = i => this.civilianNav.cost[i] >= 0;
-    for (const key of ['spawn', 'hospital', 'shelter', 'radio', 'pharmacy', 'relay']) {
+    for (const key of ['spawn', 'hospital', 'radio', 'pharmacy', 'relay']) {
       const p = this.nav.nearest(MANHATTAN[key], 35, reachable);
       if (!p) throw new Error(`No walkable mission waypoint: ${key}`);
       this.config[key] = { ...MANHATTAN[key], ...p };
     }
-    this.config.shelters = MANHATTAN.shelters.map(p => this.nav.nearest(p, 35, reachable)).filter(Boolean);
-    if (!this.config.shelters.length) this.config.shelters = [this.config.shelter];
+    const pedestrianBlock = (x, z) => {
+      const block = blockAt(x, z);
+      return block && !block.median ? block : null;
+    };
+    this.config.shelters = MANHATTAN.shelters.map(seed =>
+      shelterSite(this.civilianNav, seed, pedestrianBlock) || shelterSite(this.civilianNav, seed, pedestrianBlock, 250)
+    ).filter(Boolean);
+    if (this.config.shelters.length !== MANHATTAN.shelters.length) throw new Error('No pedestrian site for a shelter');
+    this.config.shelter = this.config.shelters[0];
     this.civilianNav.flood(this.config.shelter);
     this.routeNav = new NavigationGrid(MANHATTAN.bounds, colliders);
     this.escapeRoutes=[{nav:this.civilianNav,goal:this.config.shelter}];
@@ -57,7 +60,6 @@ export class OutbreakGame {
     }
     this.config.pharmacy.heading = siteHeading(this.routeNav, this.config.pharmacy, this.config.spawn, 2.9, 2);
     this.config.relay.heading = siteHeading(this.routeNav, this.config.relay, this.config.radio, .8, 1);
-    for (const shelter of this.config.shelters) shelter.heading = siteHeading(this.routeNav, shelter, this.config.relay, 2.5, 4.4);
     // Put the first collision on a visible approach to the shuttered pharmacy.
     const pharmacy = this.config.pharmacy;
     const collision = [9, -9, 6, -6].map(x => sitePoint(pharmacy, x, 8))
@@ -226,7 +228,7 @@ export class OutbreakGame {
     const m = this.mission, pos=this.controller.getActiveEntity().position;
     const refuge=this.config.shelters.reduce((a,b)=>distance(a,pos)<distance(b,pos)?a:b);
     const objective = m.objective;
-    const target = objective === 'shelter' ? (m.openShelter || refuge) : this.config[objective];
+    const target = objective === 'shelter' ? (m.openShelter || refuge.approach) : this.config[objective];
     const sitesVisible = !['menu', 'intro'].includes(m.phase);
     this.pharmacy.group.visible = sitesVisible;
     this.pharmacy.bag.visible = !m.hasSupplies;

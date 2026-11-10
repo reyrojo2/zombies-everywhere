@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Mission, MANHATTAN } from '../js/outbreak/mission.js';
-import { NavigationGrid } from '../js/outbreak/navigation.js';
+import { NavigationGrid, shelterSite, sitePoint } from '../js/outbreak/navigation.js';
 import { MESSAGES, getLanguage } from '../js/outbreak/locales.js';
 
 test('outbreak advances away from hospital and either refuge can finish the mission', () => {
@@ -253,4 +253,23 @@ test('only a call active at the outbreak can be interrupted', () => {
   active.tick(17, MANHATTAN.hospital);
   assert.equal(active.phase, 'escape');
   assert.equal(active.callInterruptedAt, 22);
+});
+
+
+test('shelter placement rejects the roadway and keeps its full footprint and approach on the same curb island', () => {
+  const nav = new NavigationGrid({ minX: 0, maxX: 50, minZ: 0, maxZ: 50 }, [
+    { minX: 12, maxX: 28, minZ: 12, maxZ: 32 }
+  ]);
+  nav.flood({ x: 7, z: 5 });
+  const sidewalk = (x, z) => x >= 10 && x <= 40 && z >= 8 && z <= 42 ? 'block' : null;
+  const gate = shelterSite(nav, { x: 7, z: 15 }, sidewalk, 36);
+  assert.ok(gate);
+  for (const x of [-2.55, 0, 2.55]) {
+    const start = sitePoint(gate, x, -4.45), end = sitePoint(gate, x, .3);
+    assert.equal(sidewalk(start.x, start.z), 'block');
+    assert.equal(sidewalk(end.x, end.z), 'block');
+    assert.equal(nav.clear(start, end), true);
+  }
+  assert.equal(sidewalk(gate.approach.x, gate.approach.z), 'block');
+  assert.equal(shelterSite(nav, { x: 7, z: 15 }, () => null, 36), null);
 });

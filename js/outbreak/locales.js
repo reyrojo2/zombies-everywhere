@@ -1,5 +1,6 @@
 export const MESSAGES = {
   es: {
+    rotateHint: 'Gira el celular para ver más de la calle y tener los controles a los lados.',
     pharmacySign: 'FARMACIA HUDSON', relaySign: 'AVISOS VECINALES', shelterSign: 'REFUGIO TEMPORAL',
     touch_shelter: 'Abrir', doorOpen: 'Cruza la entrada. La puerta se cerrará detrás de ti.',
 
@@ -68,6 +69,7 @@ export const MESSAGES = {
     waiting: 'Escucha la llamada. Hay movimiento junto al centro médico…'
   },
   en: {
+    rotateHint: 'Turn your phone sideways to see more of the street with controls at the sides.',
     pharmacySign: 'HUDSON PHARMACY', relaySign: 'COMMUNITY NOTICES', shelterSign: 'TEMPORARY SHELTER',
     touch_shelter: 'Open', doorOpen: 'Cross the doorway. The gate will close behind you.',
 

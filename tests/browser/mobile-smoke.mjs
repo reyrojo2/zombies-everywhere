@@ -100,12 +100,37 @@ try {
     coarse: matchMedia('(any-pointer: coarse)').matches,
     quality: document.querySelector('.ze-quality').value
   })), { webgl: true, coarse: true, quality: 'low' });
-  console.log('Mobile WebGL2 menu ready at low quality');
+  assert.equal(await page.locator('.ze-rotate-hint').isVisible(), true);
+  const portrait = page.viewportSize();
+  await page.setViewportSize({ width: portrait.height, height: portrait.width });
+  await page.locator('.ze-rotate-hint').waitFor({ state: 'hidden' });
+  assert.equal(await page.evaluate(() => matchMedia('(orientation: landscape)').matches), true);
+  const sites = await page.evaluate(async () => {
+    const { blockAt } = await import('/js/city-config.js');
+    const { sitePoint } = await import('/js/outbreak/navigation.js');
+    const { config } = window.__outbreakSmoke.outbreak;
+    return config.shelters.map(gate => {
+      const block = blockAt(gate.x, gate.z);
+      const inside = p => !!block && !block.median && blockAt(p.x, p.z) === block;
+      const footprint = [-2.55, 0, 2.55].flatMap(x => [-4.45, -2, .3].map(z => sitePoint(gate, x, z)));
+      return { x: gate.x, z: gate.z, block: block?.id, pedestrian: footprint.every(inside) && inside(gate.approach) };
+    });
+  });
+  assert.equal(sites.length, 2);
+  assert.ok(sites.every(site => site.pedestrian), JSON.stringify(sites));
+  console.log('Landscape viewport ready; shelter footprints and approaches are off the roadway', sites);
 
   await page.locator('.ze-primary').tap();
   await phase('intro');
   await page.locator('.ze-skip').tap();
   await phase('errand');
+  await page.locator('#touch-controls').waitFor({ state: 'visible' });
+  const overlap = await page.evaluate(() => {
+    const get = selector => document.querySelector(selector).getBoundingClientRect();
+    const feed = get('.ze-feed'), stick = get('#touch-stick'), actions = get('.touch-actions');
+    return feed.left < stick.right || feed.right > actions.left;
+  });
+  assert.equal(overlap, false, 'landscape subtitles leave both control clusters clear');
   await hold('#touch-stick', () => wait(() => window.__outbreakSmoke.outbreak.controller.keys.forward > 0));
   await wait(() => !window.__outbreakSmoke.outbreak.controller.keys.forward);
   console.log('Touch joystick sends and releases movement');

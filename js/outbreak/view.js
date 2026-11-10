@@ -18,7 +18,7 @@ export class OutbreakView {
       <div class="ze-screen"><div class="ze-card"><p class="ze-eyebrow" data-text="chapter"></p>
       <h1></h1><p class="ze-description"></p><p class="ze-fiction" data-text="fiction"></p>
       <div class="ze-cities"><span>● Manhattan</span><span data-text="lima"></span></div>
-      <button class="ze-primary" type="button"></button><p class="ze-hint" data-text="hint"></p>
+      <button class="ze-primary" type="button"></button><p class="ze-rotate-hint" data-text="rotateHint"></p><p class="ze-hint" data-text="hint"></p>
       <small class="ze-credits" data-text="credits"></small><small class="ze-credits"><a href="https://opengameart.org/content/epic-news-theme-beyond-the-clouds-v2" target="_blank" rel="noopener noreferrer">Music: Matthew Pablo — Beyond The Clouds · CC BY 3.0 (excerpt)</a></small></div></div>
       <div class="ze-broadcast"><p class="ze-bulletin" role="status" aria-live="polite"></p>
       <div class="ze-timeline"><i></i></div><button class="ze-skip" type="button" data-text="skip"></button></div>`;
