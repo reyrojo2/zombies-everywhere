@@ -19,8 +19,16 @@ export class PhoneSequence {
     if(!visible)return;
     const camera=this.cameraSystem.camera;camera.updateMatrixWorld();
     const raise=mission.phoneAnswered?Math.max(0,1-mission.callTime/1.5):1;
-    const horizontalOffset = Math.min(.28, .24 * camera.aspect);
-    this.group.position.set(horizontalOffset,-.18-(1-raise)*.6,-.82).applyMatrix4(camera.matrixWorld);this.group.quaternion.copy(camera.quaternion);
+    // Size in camera space so the entire phone fits in portrait as well as landscape.
+    const depth = .96;
+    const halfHeight = depth * Math.tan(camera.getEffectiveFOV() * Math.PI / 360);
+    const halfWidth = halfHeight * camera.aspect;
+    const scale = Math.min(.72, halfWidth * 1.06 / .265, halfHeight * .80 / .51);
+    const horizontalOffset = halfWidth * (camera.aspect < 1 ? .40 : .64);
+    this.group.scale.setScalar(scale);
+    this.group.position.set(horizontalOffset, -halfHeight * .18 - (1 - raise) * halfHeight * 1.45, -depth)
+      .applyMatrix4(camera.matrixWorld);
+    this.group.quaternion.copy(camera.quaternion);
     if(Math.abs(mission.time-this.last)<.08 && this.label===t('wife'))return;this.last=mission.time;this.label=t('wife');
     const c=this.ctx;c.fillStyle='#142a38';c.fillRect(0,0,512,1024);
     c.fillStyle='#d4e2e8';c.font='24px sans-serif';c.fillText(mission.storyDate.toISOString().slice(11,16),30,45);c.fillText('LTE  ▰',390,45);
@@ -33,6 +41,6 @@ export class PhoneSequence {
       c.strokeStyle='#7fd1bb';c.lineWidth=4;c.beginPath();for(let x=60;x<452;x+=3){const y=650+Math.sin(x*.08+mission.time*8)*Math.sin(x*.027)*25;x===60?c.moveTo(x,y):c.lineTo(x,y);}c.stroke();
     }
     c.fillStyle=mission.phoneAnswered?'#ad4944':'#39ad7a';c.beginPath();c.arc(256,817,55+(mission.phoneAnswered?0:Math.sin(mission.time*5)*4),0,Math.PI*2);c.fill();
-    c.fillStyle='#fff';c.font='bold 26px sans-serif';c.fillText(mission.phoneAnswered?'●':t('answer'),256,915);c.textAlign='left';this.texture.needsUpdate=true;
+    c.fillStyle='#fff';c.font='bold 26px sans-serif';c.fillText(mission.phoneAnswered?'●':t('touch_answer'),256,915);c.textAlign='left';this.texture.needsUpdate=true;
   }
 }

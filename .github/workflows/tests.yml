@@ -23,3 +23,5 @@ jobs:
       - run: npm install --no-save --no-package-lock playwright@1.58.2
       - run: npx playwright install chromium
       - run: node tests/browser/mobile-smoke.mjs
+        env:
+          ZE_CAPTURE: "1"

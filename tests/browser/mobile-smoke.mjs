@@ -71,11 +71,27 @@ try {
     await touch('touchStart', [{ x, y }]);
     try { await until(); } finally { await touch('touchEnd'); }
   };
-  const teleport = key => page.evaluate(key => {
+  const teleport = (key, distance = 0) => page.evaluate(({ key, distance }) => {
     const game = window.__outbreakSmoke.outbreak;
     const p = key === 'shelter' ? game.config.shelters[0] : game.config[key];
-    game.controller.teleportActiveTo(p.x, p.z);
-  }, key);
+    const heading = p.heading ?? 0;
+    game.controller.teleportActiveTo(
+      p.x + distance * Math.sin(heading),
+      p.z + distance * Math.cos(heading),
+      heading + Math.PI
+    );
+    game.camera.resetForTeleport();
+  }, { key, distance });
+
+  // Enabled only in a review run. Normal CI does not emit image data.
+  const capture = async (name) => {
+    if (process.env.ZE_CAPTURE !== '1') return;
+    const bytes = await page.screenshot({ type: 'jpeg', quality: 84, scale: 'css', timeout: 30_000 });
+    const data = bytes.toString('base64');
+    for (let offset = 0; offset < data.length; offset += 3500) {
+      console.log(`ZE_FRAME ${name} ${offset} ${data.slice(offset, offset + 3500)}`);
+    }
+  };
 
   await page.goto(`http://127.0.0.1:${server.address().port}/`, { waitUntil: 'domcontentloaded' });
   await page.locator('#outbreak').waitFor({ state: 'visible', timeout: 120_000 });
@@ -96,13 +112,17 @@ try {
 
   await page.evaluate(() => { window.__outbreakSmoke.outbreak.mission.streetTime = 5; });
   await phase('phone');
+  await page.getByRole('button', { name: 'Contestar', exact: true }).waitFor();
+  await capture('llamada');
   await page.getByRole('button', { name: 'Contestar', exact: true }).tap();
   await wait(() => window.__outbreakSmoke.outbreak.mission.phoneAnswered);
   console.log('Touch answers the call');
 
   await page.evaluate(() => { window.__outbreakSmoke.outbreak.mission.streetTime = 42; });
   await phase('escape');
-  await teleport('pharmacy');
+  await teleport('pharmacy', 5.5);
+  await page.getByRole('button', { name: 'Recoger', exact: true }).waitFor();
+  await capture('farmacia');
   await hold('.ze-touch-context', () => objective('radio'));
   await teleport('radio');
   await page.evaluate(() => {
@@ -110,12 +130,19 @@ try {
     mission.time = mission.config.radioArrivalSeconds;
   });
   await hold('.ze-touch-context', () => objective('relay'));
-  await teleport('relay');
+  await teleport('relay', 3.2);
+  await page.getByRole('button', { name: 'Leer', exact: true }).waitFor();
+  await capture('avisos');
   await hold('.ze-touch-context', () => objective('shelter'));
-  await teleport('shelter');
+  await teleport('shelter', 3.4);
+  await page.getByRole('button', { name: 'Abrir', exact: true }).waitFor();
+  assert.equal(await page.evaluate(() => window.__outbreakSmoke.outbreak.mission.phase), 'escape');
+  await hold('.ze-touch-context', () => wait(() => window.__outbreakSmoke.outbreak.mission.doorOpening >= .95));
+  await capture('refugio');
+  await hold('#touch-stick', () => phase('secured'));
   await phase('won');
   await page.getByRole('button', { name: 'Volver a intentarlo' }).waitFor();
-  console.log('Touch collects supplies, uses the radio and reads the notice; shelter completes the chapter');
+  console.log('Touch collects supplies, uses the radio and reads the notice; opening and crossing the shelter gate completes the chapter');
   assert.deepEqual(pageErrors, []);
   assert.deepEqual(renderingErrors, []);
 } finally {

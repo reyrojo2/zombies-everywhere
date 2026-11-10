@@ -11,10 +11,19 @@ test('outbreak advances away from hospital and either refuge can finish the miss
   m.tick(17,MANHATTAN.spawn);assert.equal(m.phase,'escape');
   m.tick(1,MANHATTAN.pharmacy,false,true);assert.equal(m.hasSupplies,true);
   m.tick(20,MANHATTAN.radio,false,true);assert.equal(m.radioReady,true);
-  m.tick(.1,MANHATTAN.shelters[1]);assert.equal(m.phase,'escape');
+  const gate = MANHATTAN.shelters[1], approach = { x: gate.x, z: gate.z + 2 }, inside = { x: gate.x, z: gate.z - 1 };
+  m.tick(.1,approach);assert.equal(m.phase,'escape');
   m.tick(1,MANHATTAN.relay,false,true);assert.equal(m.relayRead,true);
-  m.tick(.1,MANHATTAN.shelters[1],false,false,true);assert.equal(m.phase,'escape');
-  m.tick(.1,MANHATTAN.shelters[1]);assert.equal(m.phase,'won');
+  assert.equal(m.blocksGate(approach, inside, false), true);
+  m.tick(1,approach,false,true,true);assert.equal(m.openShelter,null);
+  m.tick(.55,approach,false,true);
+  m.tick(.7,approach);
+  assert.equal(m.openShelter,gate);
+  assert.equal(m.blocksGate(approach,inside,true),true);
+  assert.equal(m.blocksGate(approach,inside,false),false);
+  m.tick(.1,inside);
+  assert.equal(m.phase,'secured');
+  m.tick(1.2,inside);assert.equal(m.phase,'won');
 });
 
 test('pause freezes timers and damage; damage has shared invulnerability; restart clears state', () => {
@@ -229,4 +238,19 @@ test('route guidance avoids blocked cells, spatial separation uses local neighbo
  for(let i=1;i<traced.length;i++)assert.equal(nav.clear(traced[i-1],traced[i]),true);
  const a={x:0,z:0},b={x:1,z:1},far={x:50,z:50};const grid=new SpatialGrid([a,b,far]);
  assert.ok(grid.nearby(a).includes(b));assert.ok(!grid.nearby(a).includes(far));
+});
+
+
+test('only a call active at the outbreak can be interrupted', () => {
+  const complete = new Mission(MANHATTAN);
+  complete.start(); complete.skipIntro(); complete.tick(5, MANHATTAN.spawn); complete.answerPhone();
+  complete.tick(21, MANHATTAN.spawn); complete.tick(17, MANHATTAN.spawn);
+  assert.equal(complete.phase, 'escape');
+  assert.equal(complete.callInterruptedAt, null);
+
+  const active = new Mission(MANHATTAN);
+  active.start(); active.skipIntro(); active.tick(5, MANHATTAN.spawn); active.answerPhone();
+  active.tick(17, MANHATTAN.hospital);
+  assert.equal(active.phase, 'escape');
+  assert.equal(active.callInterruptedAt, 22);
 });
