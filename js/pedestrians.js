@@ -1387,7 +1387,7 @@ class PersonRig {
       this.spreadF = 0;
     }
     this.setPelvisRotation();
-    _pelvis.set(this.x + Math.cos(yaw) * this.sway, this.pelvisY, this.z - Math.sin(yaw) * this.sway);
+    _pelvis.set(this.x + Math.cos(yaw) * this.sway, this.pelvisY - (this.crouch || 0) * s, this.z - Math.sin(yaw) * this.sway);
     this.writeBone(BONE.PELVIS, _qPelvis, _pelvis);
 
     // Chest counter-rotates against the pelvis, leans into the walk; the head stays level, looking ahead
@@ -1395,7 +1395,7 @@ class PersonRig {
     const breathe = Math.sin(this.time * 1.7) * 0.008 * idle;
     _qChest.copy(_qPelvis)
       .multiply(qY(_q, -1.75 * this.pelvisYaw))
-      .multiply(qX(_q, 0.015 + 0.03 * g + 0.14 * run + breathe + this.infection * .38 + (this.lunge || 0) * .38))
+      .multiply(qX(_q, 0.015 + 0.03 * g + 0.14 * run + breathe + this.infection * .38 + (this.lunge || 0) * .38 + (this.crouch || 0) * .8))
       .multiply(qZ(_q, -0.8 * this.pelvisRoll));
     _chest.copy(j[BONE.CHEST]).sub(j[BONE.PELVIS]).multiplyScalar(s).applyQuaternion(_qPelvis).add(_pelvis);
     this.writeBone(BONE.CHEST, _qChest, _chest);

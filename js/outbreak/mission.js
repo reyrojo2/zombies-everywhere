@@ -12,13 +12,15 @@ export const MANHATTAN = {
   shelters: [{ x: -950, z: 3170 }, { x: -340, z: 2652 }],
   exits: [{x:-1030,z:3245},{x:-340,z:2652},{x:-920,z:2625},{x:-350,z:3130}],
   crowdAnchors: [{x:-837,z:2708},{x:-895,z:2640},{x:-700,z:2860},{x:-645,z:2910},{x:-750,z:3000},{x:-550,z:2825},{x:-442,z:2740},{x:-855,z:3095}],
-  fireSites: [{x:-790,z:2770,heading:.73,start:10},{x:-695,z:2865,heading:.73,start:23},{x:-755,z:3000,heading:2.28,start:38},{x:-540,z:2830,heading:2.28,start:52},{x:-850,z:3090,heading:2.28,start:68},{x:-445,z:2740,heading:2.28,start:85}],
+  fireSites: [{x:-790,z:2770,heading:.73,start:48},{x:-695,z:2865,heading:.73,start:66},{x:-755,z:3000,heading:2.28,start:86},{x:-540,z:2830,heading:2.28,start:108},{x:-850,z:3090,heading:2.28,start:132},{x:-445,z:2740,heading:2.28,start:158}],
   radio: { x: -550, z: 2825 },
   radioArrivalSeconds: 17,
   radioHoldSeconds: 3,
   triggerRadius: 20,
   introSeconds: 48,
   callSeconds: 20,
+  outbreakSeconds: 90,
+  localTriggerSeconds: 32,
   maxHealth: 100,
   maxStamina: 100,
   attackDamage: 14,
@@ -26,7 +28,8 @@ export const MANHATTAN = {
   zombieSpeed: 2.55,
   zombieCount: 12,
   reinforcementCount: 16,
-  civilianCount: 176,
+  civilianCount: 224,
+  activeActorCount: 72,
   incubationSeconds: 6,
   turningSeconds: 2
 };
@@ -38,6 +41,7 @@ export class Mission {
     this.stamina = this.config.maxStamina; this.hurtCooldown = 0;
     this.phoneAnswered = false; this.callComplete = false; this.callTime = 0; this.streetTime = 0;
     this.callInterruptedAt = null;
+    this.witnessedOutbreak = false;
     this.openShelter = null; this.doorOpening = 0; this.previousPosition = null;
     this.hasSupplies = false; this.radioReady = false; this.relayRead = false;
     this.actionProgress = 0; this.heldAction = null; this.radioProgress = 0;
@@ -112,7 +116,9 @@ export class Mission {
     const sprinting = wantsSprint && !this.exhausted && this.stamina > 0;
     this.stamina = Math.max(0, Math.min(this.config.maxStamina, this.stamina + dt * (sprinting ? -19 : 11)));
     if (this.stamina === 0) this.exhausted = true;
-    if (['errand','phone'].includes(this.phase) && (this.streetTime >= 42 || (this.streetTime >= 22 && distance(position, this.config.hospital) <= this.config.triggerRadius))) {
+    if (['errand','phone'].includes(this.phase) && (this.streetTime >= (this.config.outbreakSeconds ?? 90) ||
+        (this.streetTime >= (this.config.localTriggerSeconds ?? 32) &&
+          (this.witnessedOutbreak || distance(position, this.config.hospital) <= this.config.triggerRadius)))) {
       if (this.phase === 'phone' && this.phoneAnswered && !this.callComplete) this.callInterruptedAt = this.streetTime;
       this.callComplete = true;
       this.phase = 'escape'; this.time = 0;

@@ -57,10 +57,15 @@ export class OutbreakSound {
     this.voices.add(osc);osc.onended=()=>{this.voices.delete(osc);try{noise?.stop();}catch{}noise?.disconnect();osc.disconnect();filter.disconnect();gain.disconnect();pan?.disconnect();};
     osc.start();osc.stop(now+duration+.02);
   }
-  update(dt,mission,actors,player,incidents=null) {
+  update(dt,mission,actors,player,incidents=null,scenery=null) {
+    const cues = scenery?.cues?.splice(0) || [];
     if(mission.paused || ['menu','won','lost'].includes(mission.phase) || !this.audio.enabled) {this.stop();return;}
     if(!this.audio.context || this.audio.context.state!=='running')return;
     this.loadSamples();
+    for (const cue of cues) {
+      if (cue.kind === 'horn') { this.tone(310, .8, .10, cue.position); this.tone(390, .8, .065, cue.position); }
+      else if (cue.kind === 'alarm') this.tone(900, .28, .055, cue.position, false, 690);
+    }
     const bulletin=Math.min(2,Math.floor(mission.time/14));
     const cue=mission.phase==='intro'?`news${bulletin}`:
       mission.phase==='phone'?(mission.phoneAnswered?'call':'phone'):mission.phase==='errand'?'street':mission.callInterrupted?'disconnect':mission.time<3?'alarm':'escape';

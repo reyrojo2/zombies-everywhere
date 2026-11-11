@@ -3,14 +3,15 @@ import { distance } from './mission.js';
 // A bounded event buffer: noises reveal their origin, never the player's live position.
 export class NoiseField {
   constructor() { this.events = []; }
-  emit(position, radius, duration = 2) {
-    this.events.push({ x: position.x, z: position.z, radius, remaining: duration });
+  emit(position, radius, duration = 2, alarm = false) {
+    this.events.push({ x: position.x, z: position.z, radius, remaining: duration, alarm });
     if (this.events.length > 24) this.events.shift();
   }
   tick(dt) { this.events = this.events.filter(e => (e.remaining -= dt) > 0); }
-  hear(actor, clear) {
+  hear(actor, clear, accepts = () => true) {
     let best = null, score = 0;
     for (const e of this.events) {
+      if (!accepts(e)) continue;
       const d = distance(actor,e);
       if(d>=e.radius) continue;
       const radius = e.radius * (clear(actor, e) ? 1 : .3);

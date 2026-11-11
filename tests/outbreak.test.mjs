@@ -8,7 +8,7 @@ test('outbreak advances away from hospital and either refuge can finish the miss
   const m=new Mission(MANHATTAN);m.start();m.tick(48,MANHATTAN.spawn);assert.equal(m.phase,'errand');
   m.tick(5,MANHATTAN.spawn);assert.equal(m.phase,'phone');assert.equal(m.playing,true);
   m.answerPhone();m.tick(20,MANHATTAN.spawn);assert.equal(m.callComplete,true);assert.equal(m.phase,'errand');
-  m.tick(17,MANHATTAN.spawn);assert.equal(m.phase,'escape');
+  m.tick(MANHATTAN.outbreakSeconds-25,MANHATTAN.spawn);assert.equal(m.phase,'escape');
   m.tick(1,MANHATTAN.pharmacy,false,true);assert.equal(m.hasSupplies,true);
   m.tick(20,MANHATTAN.radio,false,true);assert.equal(m.radioReady,true);
   const gate = MANHATTAN.shelters[1], approach = { x: gate.x, z: gate.z + 2 }, inside = { x: gate.x, z: gate.z - 1 };
@@ -27,7 +27,7 @@ test('outbreak advances away from hospital and either refuge can finish the miss
 });
 
 test('pause freezes timers and damage; damage has shared invulnerability; restart clears state', () => {
-  const m = new Mission(MANHATTAN); m.start(); m.skipIntro(); m.callComplete=true; m.tick(25, MANHATTAN.hospital);
+  const m = new Mission(MANHATTAN); m.start(); m.skipIntro(); m.callComplete=true; m.tick(MANHATTAN.localTriggerSeconds, MANHATTAN.hospital);
   assert.equal(m.hurt(), true); assert.equal(m.hurt(), false); assert.equal(m.health, 86);
   m.paused = true; m.tick(60, MANHATTAN.shelter, true); m.hurt();
   assert.equal(m.phase, 'escape'); assert.equal(m.time, 0); assert.equal(m.health, 86);
@@ -144,7 +144,7 @@ test('procedural audio limits voices and releases nodes when stopped', () => {
 
 test('chapter interactions require proximity and continuous input, and restart resets objectives', () => {
   const m = new Mission(MANHATTAN);
-  m.start(); m.skipIntro(); m.tick(42, MANHATTAN.spawn);
+  m.start(); m.skipIntro(); m.tick(MANHATTAN.outbreakSeconds, MANHATTAN.spawn);
   m.tick(30, MANHATTAN.radio, false, true);
   assert.equal(m.radioReady, false, 'collect supplies before trying the radio');
   m.tick(.75, MANHATTAN.pharmacy, false, true);
@@ -189,7 +189,7 @@ test('phone runs in the background without resetting the street clock or blockin
 });
 
 test('ignoring a call never prevents the neighborhood outbreak',()=>{
- const m=new Mission(MANHATTAN);m.start();m.skipIntro();m.tick(43,MANHATTAN.spawn);
+ const m=new Mission(MANHATTAN);m.start();m.skipIntro();m.tick(MANHATTAN.outbreakSeconds,MANHATTAN.spawn);
  assert.equal(m.phase,'escape');assert.equal(m.phoneAnswered,false);assert.equal(m.playing,true);
 });
 
@@ -244,15 +244,15 @@ test('route guidance avoids blocked cells, spatial separation uses local neighbo
 test('only a call active at the outbreak can be interrupted', () => {
   const complete = new Mission(MANHATTAN);
   complete.start(); complete.skipIntro(); complete.tick(5, MANHATTAN.spawn); complete.answerPhone();
-  complete.tick(21, MANHATTAN.spawn); complete.tick(17, MANHATTAN.spawn);
+  complete.tick(21, MANHATTAN.spawn); complete.tick(MANHATTAN.outbreakSeconds-26, MANHATTAN.spawn);
   assert.equal(complete.phase, 'escape');
   assert.equal(complete.callInterruptedAt, null);
 
   const active = new Mission(MANHATTAN);
-  active.start(); active.skipIntro(); active.tick(5, MANHATTAN.spawn); active.answerPhone();
-  active.tick(17, MANHATTAN.hospital);
+  active.start(); active.skipIntro(); active.tick(MANHATTAN.localTriggerSeconds-1, MANHATTAN.spawn); active.answerPhone();
+  active.tick(1, MANHATTAN.hospital);
   assert.equal(active.phase, 'escape');
-  assert.equal(active.callInterruptedAt, 22);
+  assert.equal(active.callInterruptedAt, MANHATTAN.localTriggerSeconds);
 });
 
 

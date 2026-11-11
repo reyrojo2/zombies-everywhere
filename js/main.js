@@ -106,7 +106,7 @@ async function initApp() {
     ...cityGrid.footprints,
     ...streetDetails.footprints,
     ...allColliders.filter((c) => !c.obb && (c.minY ?? 0) < 3.5)
-  ], outbreakEnabled ? { cars: mobileOutbreak ? 28 : 56, buses: mobileOutbreak ? 1 : 3, pedestrians: 0, fixedPaint: true, headlightLimit: mobileOutbreak ? 16 : 32, policeLightLimit: 2 } : {});
+  ], outbreakEnabled ? { cars: mobileOutbreak ? 36 : 64, buses: mobileOutbreak ? 1 : 3, pedestrians: 0, fixedPaint: true, headlightLimit: mobileOutbreak ? 16 : 32, policeLightLimit: 2 } : {});
   markInit('traffic');
   const highwayTraffic = createHighwayTraffic(scene, outbreakEnabled ? [] : cityGrid.highwayLanes);
   const roadPaintBounds = outbreakEnabled ? {
@@ -604,7 +604,7 @@ async function initApp() {
   }
   if(outbreakEnabled) applyQuality(quality);
   const outbreak = outbreakEnabled ? new OutbreakGame({ scene, controller: controllerManager,
-    camera: cameraSystem, colliders: allColliders, roadNetwork: trafficSystem.network, audio: audioSystem, touchControls, mobile: mobileOutbreak, onQuality: applyQuality }) : null;
+    camera: cameraSystem, colliders: allColliders, roadNetwork: trafficSystem.network, traffic: trafficSystem, audio: audioSystem, touchControls, mobile: mobileOutbreak, onQuality: applyQuality }) : null;
   if (outbreak) {
     touchControls.onAvailabilityChange = () => outbreak.render();
     gamepadControls.setEnabled(false);

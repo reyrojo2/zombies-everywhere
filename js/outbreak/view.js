@@ -10,7 +10,7 @@ export class OutbreakView {
       <div class="ze-settings"><label><span data-text="language"></span> <select aria-label="Idioma / Language"><option value="es">Español</option><option value="en">English</option></select></label>
       <label><span data-text="quality"></span><select class="ze-quality" aria-label="Calidad / Quality"><option value="low" data-text="qualityLow"></option><option value="balanced" data-text="qualityBalanced"></option><option value="cinematic" data-text="qualityHigh"></option></select></label><button class="ze-sound" type="button"></button><button class="ze-pause" type="button" data-text="pause"></button></div></div>
       <button class="ze-phone-answer" type="button" data-text="answer"></button><div class="ze-hud"><div class="ze-clock"></div><div class="ze-infection"></div><div class="ze-interaction"></div><div class="ze-objective"></div><div class="ze-distance"></div><div class="ze-threat"></div><progress class="ze-progress" max="1" aria-label="Interaction" hidden></progress>
-      <div class="ze-vitals"><label><span data-text="health"></span><progress class="ze-health" max="100" value="100"></progress></label>
+      <div class="ze-route-hint"></div><div class="ze-vitals"><label><span data-text="health"></span><progress class="ze-health" max="100" value="100"></progress></label>
       <label><span data-text="stamina"></span><progress class="ze-stamina" max="100" value="100"></progress></label></div></div>
       <canvas class="ze-map" width="240" height="190" aria-label="Mapa / Map"></canvas>
       <aside class="ze-feed" role="status" aria-live="polite"><div class="ze-feed-label"></div><p class="ze-feed-text"></p></aside>
@@ -127,6 +127,13 @@ export class OutbreakView {
     this.$('.ze-cities').hidden = phase !== 'menu';
     this.$('.ze-hint').hidden = terminal;
     this.$('.ze-objective').textContent = this.t(`objective_${mission.objective}`);
+    const next = this.route?.[Math.min(8, this.route.length - 1)];
+    if (next && this.player) {
+      const angle = Math.atan2(next.x - this.player.position.x, next.z - this.player.position.z) - this.player.heading;
+      const turn = Math.atan2(Math.sin(angle), Math.cos(angle));
+      this.$('.ze-route-hint').textContent = distance < 8 ? this.t('routeArrive') :
+        `${this.t(Math.abs(turn) < .5 ? 'routeAhead' : turn > 0 ? 'routeRight' : 'routeLeft')} · ${Math.ceil(Math.hypot(next.x - this.player.position.x, next.z - this.player.position.z))} m`;
+    } else this.$('.ze-route-hint').textContent = '';
     this.$('.ze-distance').textContent = `${Math.ceil(distance)} m · ${this.t(mission.objective)} · ${this.t('infections')}: ${infections}`;
     this.$('.ze-threat').textContent = threat < 25 ? `${this.t('threat')}: ${Math.ceil(threat)} m` : '';
     this.$('.ze-progress').hidden = !worldAction;
