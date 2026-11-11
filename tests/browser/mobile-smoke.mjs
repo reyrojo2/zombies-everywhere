@@ -143,6 +143,10 @@ try {
       count: residents.length,
       nearby: residents.filter(a => Math.hypot(a.x - game.config.spawn.x, a.z - game.config.spawn.z) < 75).length,
       budget: game.config.activeActorCount,
+      streetVisible: residents.filter(a => {
+        const p = game.config.spawn, dx = a.x - p.x, dz = a.z - p.z;
+        return Math.hypot(dx, dz) < 75 && game.nav.clear(p, a) && Math.sin(p.heading) * dx + Math.cos(p.heading) * dz > 0;
+      }).length,
       sidewalk: residents.every(a => !!blockAt(a.home.x, a.home.z)),
       props: !!window.__outbreakSmoke.scene.getObjectByName('NeighborhoodStreetProps'),
       schoolVan: !!game.config.schoolVan,
@@ -157,6 +161,7 @@ try {
   assert.equal(neighborhood.count, 160);
   assert.ok(neighborhood.nearby >= 35, JSON.stringify(neighborhood));
   assert.equal(neighborhood.budget, 40);
+  assert.ok(neighborhood.streetVisible >= 8, JSON.stringify(neighborhood));
   assert.ok(neighborhood.sidewalk && neighborhood.props && neighborhood.pharmacy && neighborhood.reachable && neighborhood.schoolVan && neighborhood.deliveryVan, JSON.stringify(neighborhood));
   console.log('Populated sidewalks, school van, deliveries, reachable exits and a sidewalk pharmacy verified', neighborhood);
   await wait(() => window.__outbreakSmoke.scene.getObjectByName('OutbreakContactShadows')?.count > 0);

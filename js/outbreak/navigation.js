@@ -1,5 +1,5 @@
 // Bounded ground navigation. One reverse BFS is shared by the entire horde.
-// Expanded obstacle boxes conservatively cover oriented colliders as well.
+// Rotated footprints keep diagonal streets and their sidewalks open.
 export class NavigationGrid {
   constructor(bounds, colliders, cell = 2) {
     this.bounds = bounds; this.cell = cell;
@@ -21,7 +21,7 @@ export class NavigationGrid {
       const z1 = Math.min(this.height - 1, Math.floor((c.maxZ + padding - bounds.minZ) / cell));
       for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
         const index = z * this.width + x;
-        if (c.navigationObb) {
+        if (c.obb) {
           const point = this.point(index), o = c.obb, dx = point.x - o.cx, dz = point.z - o.cz;
           if (Math.abs(dx * o.cs - dz * o.sn) > o.hx + padding || Math.abs(dx * o.sn + dz * o.cs) > o.hz + padding) continue;
         }
