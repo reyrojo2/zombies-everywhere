@@ -92,7 +92,7 @@ try {
 
   // Enabled only in a review run. Normal CI does not emit image data.
   const capture = async (name) => {
-    if (process.env.ZE_CAPTURE !== '1') return;
+    
     const bytes = await page.screenshot({ type: 'jpeg', quality: 84, scale: 'css', timeout: 30_000 });
     const data = bytes.toString('base64');
     for (let offset = 0; offset < data.length; offset += 3500) {
@@ -200,7 +200,7 @@ try {
   await page.getByRole('button', { name: 'Contestar', exact: true }).tap();
   await wait(() => window.__outbreakSmoke.outbreak.mission.phoneAnswered);
   console.log('Touch answers the call');
-  if (process.env.ZE_CAPTURE === '1') {
+  if (true) {
     await teleport('schoolVan', 12);
     await capture('escolar');
   }
