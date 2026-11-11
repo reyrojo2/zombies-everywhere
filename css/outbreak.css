@@ -136,6 +136,7 @@ body.outbreak-mode.touch-enabled #outbreak .ze-bulletin {
 }
 body.outbreak-mode.touch-enabled .ze-screen { align-items:flex-start; padding-top:92px; }
 .ze-rotate-hint { display:none; }
+.ze-route-hint { margin-top:4px; color:#e5c389; font-size:11px; }
 @media (orientation:portrait) {
   body.outbreak-mode.touch-enabled #outbreak[data-phase="menu"] .ze-rotate-hint {
     display:block; color:#e5b45a; font-size:12px; margin:12px 0;

@@ -1,5 +1,5 @@
 // Bounded ground navigation. One reverse BFS is shared by the entire horde.
-// Expanded obstacle boxes conservatively cover oriented colliders as well.
+// Rotated footprints keep diagonal streets and their sidewalks open.
 export class NavigationGrid {
   constructor(bounds, colliders, cell = 2) {
     this.bounds = bounds; this.cell = cell;
@@ -8,6 +8,10 @@ export class NavigationGrid {
     this.blocked = new Uint8Array(this.width * this.height);
     this.cost = new Int32Array(this.blocked.length).fill(-1);
     this.queue = new Int32Array(this.blocked.length);
+    this.addObstacles(colliders);
+  }
+  addObstacles(colliders) {
+    const { cell, bounds } = this;
     const padding = 0.65 + cell / 2;
     for (const c of colliders) {
       if ((c.minY ?? 0) > 1.9 || (c.maxY ?? 10) < 0.4) continue;
@@ -15,7 +19,14 @@ export class NavigationGrid {
       const x1 = Math.min(this.width - 1, Math.floor((c.maxX + padding - bounds.minX) / cell));
       const z0 = Math.max(0, Math.floor((c.minZ - padding - bounds.minZ) / cell));
       const z1 = Math.min(this.height - 1, Math.floor((c.maxZ + padding - bounds.minZ) / cell));
-      for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) this.blocked[z * this.width + x] = 1;
+      for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
+        const index = z * this.width + x;
+        if (c.obb) {
+          const point = this.point(index), o = c.obb, dx = point.x - o.cx, dz = point.z - o.cz;
+          if (Math.abs(dx * o.cs - dz * o.sn) > o.hx + padding || Math.abs(dx * o.sn + dz * o.cs) > o.hz + padding) continue;
+        }
+        this.blocked[index] = 1;
+      }
     }
   }
   index(p) {
@@ -129,6 +140,12 @@ export function sitePoint(point, x, z) {
 
 // The shelter and its approach must share a curb island with no building collision.
 export function shelterSite(nav, seed, surfaceAt, radius = 120) {
+  return pedestrianSite(nav, seed, surfaceAt, { radius });
+}
+
+export function pedestrianSite(nav, seed, surfaceAt, {
+  radius = 120, halfWidth = 2.55, depth = 4.45, approach = 4.1, facade = false
+} = {}) {
   const candidates = [];
   const minX = Math.max(nav.bounds.minX + 6, seed.x - radius);
   const maxX = Math.min(nav.bounds.maxX - 6, seed.x + radius);
@@ -149,15 +166,16 @@ export function shelterSite(nav, seed, surfaceAt, radius = 120) {
       const at = (x, z) => sitePoint(gate, x, z);
       const inside = point => surfaceAt(point.x, point.z) === surface;
       const approaches = [-.9, 0, .9].every(x => {
-        const front = at(x, 4.1);
+        const front = at(x, approach);
         return [at(x, 0), at(x, 2), front].every(inside) && nav.clear(at(x, 0), front);
       });
       if (!approaches) continue;
-      const fits = [-2.55, -1.3, 0, 1.3, 2.55].every(x => {
-        const back = at(x, -4.45), front = at(x, .3);
-        return [back, at(x, -3), at(x, -1.5), front].every(inside) && nav.clear(back, front);
+      const fits = [-halfWidth, -halfWidth / 2, 0, halfWidth / 2, halfWidth].every(x => {
+        const back = at(x, -depth), front = at(x, .3);
+        return [back, at(x, -depth * .66), at(x, -depth * .33), front].every(inside) && nav.clear(back, front);
       });
-      if (fits) return { ...gate, approach: at(0, 3.4) };
+      const backed = !facade || [-1.5, 0, 1.5].filter(x => !nav.open(nav.index(at(x, -depth - 2)))).length >= 2;
+      if (fits && backed) return { ...gate, approach: at(0, approach - .7) };
     }
   }
   return null;

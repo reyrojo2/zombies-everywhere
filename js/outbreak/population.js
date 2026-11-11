@@ -15,13 +15,14 @@ export class Population {
     if (!['normal', 'fleeing'].includes(a.state) || a.sheltered) return false;
     a.wounded = true; a.state = 'bitten'; a.timer = this.config.incubationSeconds; this.infections++; return true;
   }
-  update(dt, player, clear, hurt) {
+  update(dt, player, clear, hurt, activeActors = this.actors) {
     this.noise.tick(dt);
     if (!this.active) return;
     this.decisionTime -= dt;
     const decide = this.decisionTime <= 0;
     if (decide) this.decisionTime = 0.2;
-    const zombies = this.actors.filter(a => a.state === 'zombie');
+    const active = new Set(activeActors);
+    const zombies = this.actors.filter(a => a.state === 'zombie' || a.state === 'turning');
     for (const a of this.actors) {
       a.memoryTime = Math.max(0, a.memoryTime - dt);
       if(a.state === 'zombie') a.infectedAge += dt;
@@ -34,16 +35,28 @@ export class Population {
         }
         continue;
       }
-      if (a.sheltered || !decide) continue;
+      if (a.sheltered || !decide || !active.has(a)) continue;
       if (a.civilian) {
         a.threat = zombies.find(z => distance(a, z) < 26 && clear(a, z));
-        if (a.threat) a.state = 'fleeing';
+        const heard = this.noise.hear(a, clear, event => event.alarm);
+        if (a.helping === a.threat && a.threat) {
+          if (a.threat.state === 'turning') continue;
+          a.hesitation = (a.hesitation || 0) + .2;
+          if (a.hesitation < 1.2) continue;
+        }
+        if (a.threat || heard?.alarm) {
+          a.state = 'fleeing'; a.panicUntil = 8;
+          a.danger = a.threat || { x: heard.x, z: heard.z };
+        } else if (a.state === 'fleeing') {
+          a.panicUntil = Math.max(0, (a.panicUntil ?? 8) - .2);
+          if (a.panicUntil === 0) { a.state = 'normal'; a.routeGoal = null; }
+        }
         // Exit/re-entry is managed by the crowd director, not a single shared destination.
         continue;
       }
       let target = sees(a, player, clear) ? player : null;
       let best = target ? distance(a, target) : Infinity;
-      for (const civilian of this.actors) {
+      for (const civilian of activeActors) {
         if (!['normal', 'fleeing'].includes(civilian.state) || civilian.sheltered) continue;
         const d = distance(a, civilian);
         if (d < best && sees(a, civilian, clear)) { target = civilian; best = d; }

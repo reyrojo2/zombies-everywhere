@@ -48,7 +48,7 @@ export class OutbreakIncidents {
     const t=this.time,site=this.sites[0],heading=site.heading??0,dx=Math.sin(heading),dz=Math.cos(heading),gap=Math.max(0,(site.start-t)*9);
     // Bounded directed collision: two cars approach and remain wrecked after impact.
     this.crashed=t>=this.sites[0].start;
-    this.carA.visible=this.carB.visible=true;
+    this.carA.visible=this.carB.visible=t>=site.start-3;
     this.carA.position.set(site.x+dx*gap,0,site.z+dz*gap);
     this.carB.position.set(site.x-dx*(gap+3)+dz*2,0,site.z-dz*(gap+3)-dx*2);
     this.carA.rotation.y=heading+(this.crashed?.65:Math.PI);

@@ -1,14 +1,15 @@
 import * as THREE from 'three/webgpu';
 import { Mission, MANHATTAN, distance } from './mission.js';
 import { blockAt } from '../city-config.js';
-import { NavigationGrid, shelterSite, sitePoint } from './navigation.js';
+import { NavigationGrid, shelterSite, pedestrianSite, sitePoint } from './navigation.js';
+import { Neighborhood, roadsidePoint, parkedCollider } from './neighborhood.js';
 import { OutbreakActors } from './actors.js';
 import { OutbreakView } from './view.js';
 import { OutbreakSound } from './sound.js';
 import { OutbreakIncidents } from './incidents.js';
 import { TVIntroduction } from './tv-introduction.js';
 import { PhoneSequence } from './phone-sequence.js';
-import { createPharmacy, createNoticeBoard, createShelterGate } from './locations.js';
+import { createPharmacy, createNoticeBoard, createShelterGate, createNeighborhoodScenery } from './locations.js';
 
 function siteHeading(nav, point, from, width, depth) {
   nav.flood(point);
@@ -25,15 +26,15 @@ function siteHeading(nav, point, from, width, depth) {
 }
 
 export class OutbreakGame {
-  constructor({ scene, controller, camera, colliders, roadNetwork, audio, touchControls, mobile = false, onQuality = () => {} }) {
+  constructor({ scene, controller, camera, colliders, roadNetwork, traffic, audio, touchControls, mobile = false, onQuality = () => {} }) {
     this.touchControls = touchControls;
-    this.roadNetwork=roadNetwork; this.controller = controller; this.camera = camera; this.audio = audio;
+    this.roadNetwork=roadNetwork; this.traffic=traffic; this.controller = controller; this.camera = camera; this.audio = audio;
     this.sound = new OutbreakSound(audio);
     this.intro = new TVIntroduction();
     this.phone = new PhoneSequence(scene,camera);
     this.nav = new NavigationGrid(MANHATTAN.bounds, colliders);
     // Resolve authored waypoints against actual buildings, rather than assuming empty sidewalks.
-    this.config = { ...MANHATTAN, ...(mobile ? { civilianCount: 112, actorDrawDistance: 125 } : {}) };
+    this.config = { ...MANHATTAN, ...(mobile ? { civilianCount: 160, activeActorCount: 40, actorDrawDistance: 170 } : {}) };
     this.civilianNav = new NavigationGrid(MANHATTAN.bounds, colliders);
     this.civilianNav.flood(MANHATTAN.spawn);
     const reachable = i => this.civilianNav.cost[i] >= 0;
@@ -46,6 +47,11 @@ export class OutbreakGame {
       const block = blockAt(x, z);
       return block && !block.median ? block : null;
     };
+    const pharmacySite = pedestrianSite(this.civilianNav, MANHATTAN.pharmacy, pedestrianBlock,
+      { halfWidth: 3, depth: 1.85, approach: 3.3, facade: true }) ||
+      pedestrianSite(this.civilianNav, MANHATTAN.pharmacy, pedestrianBlock, { halfWidth: 3, depth: 1.85, approach: 3.3 });
+    if (!pharmacySite) throw new Error('No pedestrian site for pharmacy');
+    this.config.pharmacy = pharmacySite;
     this.config.shelters = MANHATTAN.shelters.map(seed =>
       shelterSite(this.civilianNav, seed, pedestrianBlock) || shelterSite(this.civilianNav, seed, pedestrianBlock, 250)
     ).filter(Boolean);
@@ -55,11 +61,30 @@ export class OutbreakGame {
     this.routeNav = new NavigationGrid(MANHATTAN.bounds, colliders);
     this.escapeRoutes=[{nav:this.civilianNav,goal:this.config.shelter}];
     for(const {x,z} of MANHATTAN.exits) {
-      const nav=new NavigationGrid(MANHATTAN.bounds,colliders),goal=nav.nearest({x,z},30);
+      const nav=new NavigationGrid(MANHATTAN.bounds,colliders),goal=nav.nearest({x,z},30,reachable);
       if(goal){nav.flood(goal);this.escapeRoutes.push({nav,goal});}
     }
-    this.config.pharmacy.heading = siteHeading(this.routeNav, this.config.pharmacy, this.config.spawn, 2.9, 2);
     this.config.relay.heading = siteHeading(this.routeNav, this.config.relay, this.config.radio, .8, 1);
+    this.routeNav.flood(this.config.pharmacy.approach);
+    this.neighborhood = new Neighborhood(this.config, this.civilianNav, pedestrianBlock, this.routeNav.trace(this.config.spawn));
+    const goals = [this.config.spawn, this.config.pharmacy.approach, this.config.radio, this.config.relay,
+      ...this.config.shelters.map(site => site.approach), ...this.escapeRoutes.map(route => route.goal)];
+    const parked = [];
+    const canPark = point => {
+      if (goals.some(goal => distance(goal, point) < 10) || parked.some(p => distance(p, point) < 12)) return false;
+      const before = this.nav.blocked.slice();
+      this.nav.addObstacles([parkedCollider(point)]);
+      this.nav.flood(this.config.spawn);
+      const fits = goals.every(goal => this.nav.cost[this.nav.index(goal)] >= 0);
+      this.nav.blocked.set(before);
+      return fits;
+    };
+    this.config.schoolVan = roadsidePoint(roadNetwork, this.neighborhood.stop, this.nav, canPark);
+    if (this.config.schoolVan) {
+      parked.push(this.config.schoolVan); this.nav.addObstacles([parkedCollider(this.config.schoolVan)]);
+    }
+    this.config.deliveryVan = roadsidePoint(roadNetwork, this.neighborhood.delivery, this.nav, canPark);
+    this.config.firstCase = this.neighborhood.caseSite;
     for (const shelter of this.config.shelters) this.routeNav.avoidShelter(shelter);
     // Put the first collision on a visible approach to the shuttered pharmacy.
     const pharmacy = this.config.pharmacy;
@@ -71,9 +96,16 @@ export class OutbreakGame {
     }
     this.mission = new Mission(this.config);
     this.incidents = new OutbreakIncidents(scene,this.config);
-    this.actors = new OutbreakActors(scene, this.nav, controller, this.config);
+    this.actors = new OutbreakActors(scene, this.nav, controller, this.config, this.neighborhood);
     this.markers = new THREE.Group(); scene.add(this.markers);
     const ground = p => controller.getGroundHeight(p.x, p.z, 'person');
+    this.scenery = createNeighborhoodScenery(this.config, this.neighborhood, ground);
+    scene.add(this.scenery.group);
+    colliders.push(...this.scenery.colliders);
+    controller._colliderCells = null;
+    const grids = new Set([this.nav, this.routeNav, ...this.escapeRoutes.map(route => route.nav)]);
+    for (const nav of grids) nav.addObstacles(this.scenery.colliders);
+    for (const { nav, goal } of this.escapeRoutes) nav.flood(goal);
     this.pharmacy = createPharmacy(this.config.pharmacy, ground(this.config.pharmacy));
     this.relay = createNoticeBoard(this.config.relay, ground(this.config.relay));
     this.shelterGates = this.config.shelters.map(point => ({ point, ...createShelterGate(point, ground(point)) }));
@@ -119,6 +151,7 @@ export class OutbreakGame {
   }
   updateSigns() {
     this.pharmacy.writeSign(this.view.t('pharmacySign'));
+    this.scenery.writeStop(this.view.t('busStop'));
     this.relay.writeSign(this.view.t('relaySign'));
     for (const gate of this.shelterGates) gate.writeSign(this.view.t('shelterSign'));
     this.render();
@@ -141,7 +174,12 @@ export class OutbreakGame {
     const p=this.controller.getActiveEntity();
     const target={x:p.position.x+Math.sin(p.heading)*12,z:p.position.z+Math.cos(p.heading)*12};
     if(!this.nav.clear(p.position,target))return;
-    this.actors.population.noise.emit(target,35,3);this.nextDistraction=this.mission.elapsed+8;
+    const van = this.config.schoolVan;
+    const alarm = van && distance(target, van) < 10;
+    const cue = alarm ? van : target;
+    this.actors.population.noise.emit(cue,alarm ? 70 : 35,alarm ? 6 : 3,alarm);
+    if (alarm) this.scenery.alarmUntil = this.mission.streetTime + 6;
+    this.nextDistraction=this.mission.elapsed+8;
     this.sound.tone(180,.25,.12,target,true);
     if(!this.distractionMarker)this.distractionMarker=this.createMarker(target,0xb7d8ec);
     this.distractionMarker.position.set(target.x,0,target.z);this.distractionMarker.visible=true;
@@ -168,7 +206,8 @@ export class OutbreakGame {
     controller.setMode('person');
   }
   start() {
-    this.touchInteraction=null; this.controller.missionDriving=false;this.nextDistraction=0;this.interacting=false; this.actors.prepare(); this.incidents.reset(); this.sound.reset(); this.mission.start(); this.controller.setMode('person');
+    this.touchInteraction=null; this.controller.missionDriving=false;this.nextDistraction=0;this.interacting=false; this.actors.prepare(); this.incidents.reset(); this.sound.reset(); this.scenery.reset(); this.mission.start(); this.controller.setMode('person');
+    this.routeTarget = null; this.shutterClosed = 0;
     this.controller.teleportActiveTo(this.config.spawn.x, this.config.spawn.z, this.config.spawn.heading);
     this.camera.resetForTeleport(); this.lastSafe = { ...this.controller.entities.person.position };
     this.parkEscapeCar();
@@ -215,7 +254,16 @@ export class OutbreakGame {
     }
     if (m.playing) this.actors.update(dt, player, m, this.civilianNav, this.escapeRoutes);
     this.incidents.update(dt,m,player.position);
-    this.sound.update(dt, m, this.actors.actors, player.position, this.incidents);
+    this.scenery.update(m, this.actors.actors, player.position, this.actors.population.noise);
+    if (m.playing) {
+      const pharmacyDanger = this.actors.actors.some(a => a.state === 'zombie' && distance(a, this.config.pharmacy) < 30);
+      if (pharmacyDanger || m.phase === 'escape') this.shutterClosed = Math.min(1, this.shutterClosed + dt / 2.5);
+      this.pharmacy.setClosed(this.shutterClosed);
+      if (this.shutterClosed > 0 && this.shutterClosed < 1) this.actors.population.noise.emit(this.config.pharmacy, 22, .3);
+    }
+    this.sound.update(dt, m, this.actors.actors, player.position, this.incidents, this.scenery);
+    this.traffic?.setOutbreakHazards(m.playing ? this.actors.activeActors.filter(a => a.state === 'fleeing' || a.state === 'zombie') : [],
+      [this.config.schoolVan, this.config.deliveryVan].filter(Boolean));
     for (const gate of this.shelterGates) gate.setOpening(m.openShelter === gate.point ? m.doorOpening : 0);
     if (previous !== m.phase || objective !== m.objective) this.render();
     this.view.root.classList.toggle('ze-hit', m.hurtCooldown > this.config.attackCooldown - 0.18);
@@ -230,13 +278,14 @@ export class OutbreakGame {
     const refuge=this.config.shelters.reduce((a,b)=>distance(a,pos)<distance(b,pos)?a:b);
     const objective = m.objective;
     const shelter = m.openShelter || refuge;
-    const target = objective === 'shelter' ? shelter.approach : this.config[objective];
+    const target = objective === 'shelter' ? shelter.approach : objective === 'pharmacy' ? this.config.pharmacy.approach : this.config[objective];
     const sitesVisible = !['menu', 'intro'].includes(m.phase);
     this.pharmacy.group.visible = sitesVisible;
     this.pharmacy.bag.visible = !m.hasSupplies;
     this.relay.group.visible = sitesVisible;
     this.radio.visible = sitesVisible && objective === 'radio';
     for (const gate of this.shelterGates) gate.group.visible = sitesVisible;
+    this.scenery.group.visible = sitesVisible;
     let feed = m.streetTime < 10 ? 'street0' : m.streetTime < 24 ? 'street1' : 'street2';
     if (m.phase === 'errand' && m.hasSupplies) feed = 'suppliesMessage';
     if (m.phase === 'phone') feed = !m.phoneAnswered ? 'phoneIncoming' : m.callTime < 9 ? 'call0' : 'call1';
@@ -246,6 +295,7 @@ export class OutbreakGame {
       else if (objective === 'radio') feed = 'suppliesMessage';
       else feed = m.callInterrupted ? 'cut' : 'pharmacyAlert';
     }
+    if (m.playing && (m.phase !== 'phone' || (m.phoneAnswered && m.callComplete)) && !m.hasSupplies && this.actors.event) feed = this.actors.event;
     const nearest=Math.min(999,...this.actors.actors.filter(a=>a.state==='zombie').map(a=>distance(a,pos)));
     if (m.playing && this.routeTarget !== target) {
       this.routeNav.flood(target);
@@ -253,6 +303,7 @@ export class OutbreakGame {
     }
     this.route = m.playing ? this.routeNav.trace(pos) : [];
     this.view.route=this.route || [];
+    this.view.player = this.controller.getActiveEntity();
     this.view.vehiclePosition=this.controller.entities.car.position;
     this.view.vehicleNearby=distance(pos,this.controller.entities.car.position)<5;
     this.view.driving=this.controller.activeMode==='car';

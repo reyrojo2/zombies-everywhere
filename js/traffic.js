@@ -1038,6 +1038,10 @@ function createTrafficSystem(scene, sidewalks, obstacles, population = {}) {
         v.leaderSpeed = v.pSpeed;
       }
     }
+    if (v.hazardGap < LOOKAHEAD) {
+      worst = Math.min(worst, brake(v, v.hazardGap, 0));
+      if (v.hazardGap < v.gap) { v.gap = Math.max(0, v.hazardGap); v.leaderSpeed = 0; }
+    }
     const acc = Math.min(freeAcc(v) + worst, (cap - v.speed) * 2);
     v.acc = clamp(acc, -9, v.driver.a);
   }
@@ -1971,6 +1975,8 @@ function createTrafficSystem(scene, sidewalks, obstacles, population = {}) {
   let lastFocusZ = Infinity;
   let vehicleCursor = 0;
   let pedCursor = 0;
+  let outbreakHazards = [];
+  let parkedHazards = [];
 
   function update(dt, elapsed, focusPos = null, playerEntity = null, activeMode = 'car', camera = null) {
     clock = elapsed;
@@ -2027,6 +2033,18 @@ function createTrafficSystem(scene, sidewalks, obstacles, population = {}) {
       v.prevX = v.x;
       v.prevZ = v.z;
       relateToPlayer(v);
+      // Residents crossing in panic and parked mission vans are visible obstacles to drivers.
+      let hazardGap = Infinity;
+      const heading = v.yaw + v.yawOffset, fx = Math.sin(heading), fz = Math.cos(heading);
+      for (const hazard of [...outbreakHazards, ...parkedHazards]) {
+        const dx = hazard.x - v.x, dz = hazard.z - v.z;
+        if (Math.abs(dx) > 45 || Math.abs(dz) > 45) continue;
+        const ahead = dx * fx + dz * fz, side = dx * fz - dz * fx;
+        if (ahead > 0 && Math.abs(side) < v.halfWidth + (hazard.parked ? 2 : .65)) {
+          hazardGap = Math.min(hazardGap, ahead - v.half - (hazard.parked ? 3.6 : 1));
+        }
+      }
+      v.hazardGap = hazardGap;
       drive(v, dt);
       locate(v);
       knock(v, dt);
@@ -2121,7 +2139,11 @@ function createTrafficSystem(scene, sidewalks, obstacles, population = {}) {
     cars,
     buses,
     peds,
-    network
+    network,
+    setOutbreakHazards(actors, parked) {
+      outbreakHazards = actors;
+      parkedHazards = parked.map(point => ({ ...point, parked: true }));
+    }
   };
 }
 

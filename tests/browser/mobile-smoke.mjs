@@ -132,6 +132,38 @@ try {
   await phase('intro');
   await page.locator('.ze-skip').tap();
   await phase('errand');
+  const neighborhood = await page.evaluate(async () => {
+    const game = window.__outbreakSmoke.outbreak;
+    const { blockAt } = await import('/js/city-config.js');
+    const { sitePoint } = await import('/js/outbreak/navigation.js');
+    const residents = game.actors.actors;
+    const pharmacy = game.config.pharmacy;
+    const block = blockAt(pharmacy.x, pharmacy.z);
+    return {
+      count: residents.length,
+      nearby: residents.filter(a => Math.hypot(a.x - game.config.spawn.x, a.z - game.config.spawn.z) < 75).length,
+      budget: game.config.activeActorCount,
+      streetVisible: residents.filter(a => {
+        const p = game.config.spawn, dx = a.x - p.x, dz = a.z - p.z;
+        return Math.hypot(dx, dz) < 75 && game.nav.clear(p, a) && Math.sin(p.heading) * dx + Math.cos(p.heading) * dz > 0;
+      }).length,
+      sidewalk: residents.every(a => !!blockAt(a.home.x, a.home.z)),
+      props: !!window.__outbreakSmoke.scene.getObjectByName('NeighborhoodStreetProps'),
+      schoolVan: !!game.config.schoolVan,
+      deliveryVan: !!game.config.deliveryVan,
+      pharmacy: blockAt(pharmacy.approach.x, pharmacy.approach.z) === block && [-3, 0, 3].every(x => [-1.85, .3].every(z => {
+        const p = sitePoint(pharmacy, x, z);
+        return blockAt(p.x, p.z) === block;
+      })),
+      reachable: game.escapeRoutes.every(route => route.nav.cost[route.nav.index(game.config.spawn)] >= 0)
+    };
+  });
+  assert.equal(neighborhood.count, 160);
+  assert.ok(neighborhood.nearby >= 35, JSON.stringify(neighborhood));
+  assert.equal(neighborhood.budget, 40);
+  assert.ok(neighborhood.streetVisible >= 8, JSON.stringify(neighborhood));
+  assert.ok(neighborhood.sidewalk && neighborhood.props && neighborhood.pharmacy && neighborhood.reachable && neighborhood.schoolVan && neighborhood.deliveryVan, JSON.stringify(neighborhood));
+  console.log('Populated sidewalks, school van, deliveries, reachable exits and a sidewalk pharmacy verified', neighborhood);
   await wait(() => window.__outbreakSmoke.scene.getObjectByName('OutbreakContactShadows')?.count > 0);
   const draw = await page.evaluate(() => {
     const { scene } = window.__outbreakSmoke;
@@ -168,8 +200,12 @@ try {
   await page.getByRole('button', { name: 'Contestar', exact: true }).tap();
   await wait(() => window.__outbreakSmoke.outbreak.mission.phoneAnswered);
   console.log('Touch answers the call');
+  if (process.env.ZE_CAPTURE === '1') {
+    await teleport('schoolVan', 12);
+    await capture('escolar');
+  }
 
-  await page.evaluate(() => { window.__outbreakSmoke.outbreak.mission.streetTime = 42; });
+  await page.evaluate(() => { window.__outbreakSmoke.outbreak.mission.streetTime = window.__outbreakSmoke.outbreak.config.outbreakSeconds; });
   await phase('escape');
   assert.ok(await page.evaluate(() => window.__outbreakSmoke.lightingSystem.uFogDensity.value > .00115));
   await teleport('pharmacy', 5.5);
