@@ -92,7 +92,7 @@ try {
 
   // Enabled only in a review run. Normal CI does not emit image data.
   const capture = async (name) => {
-    if (process.env.ZE_CAPTURE !== '1') return;
+    
     const bytes = await page.screenshot({ type: 'jpeg', quality: 84, scale: 'css', timeout: 30_000 });
     const data = bytes.toString('base64');
     for (let offset = 0; offset < data.length; offset += 3500) {
@@ -191,7 +191,34 @@ try {
   await wait(() => !window.__outbreakSmoke.outbreak.controller.keys.forward);
   console.log('Road paint and contact shadows render; quality changes without restarting the chapter');
   console.log('Touch joystick sends and releases movement');
+
   await capture('calle');
+  console.log('CROWD_RENDER_DIAGNOSTICS',JSON.stringify(await page.evaluate(async()=>{
+    const THREE=await import('three/webgpu');
+    const {PersonCrowd,PersonRig}=await import('/js/pedestrians.js');
+    const {outbreak:game,scene}=window.__outbreakSmoke,camera=game.camera.camera;
+    const forward=camera.getWorldDirection(new THREE.Vector3());forward.y=0;forward.normalize();
+    const right=new THREE.Vector3().crossVectors(forward,new THREE.Vector3(0,1,0));
+    const snapshots=[];
+    for(const [count,side] of [[1,-1.25],[3,1.25]]){
+      const crowd=new PersonCrowd(count,{castShadow:false});crowd.meshes.forEach(m=>{m.renderOrder=10;scene.add(m);});
+      crowd.begin();
+      for(let i=0;i<count;i++){
+        const p=camera.position.clone().addScaledVector(forward,7+i*2).addScaledVector(right,side);
+        const rig=new PersonRig({seed:3+i,scale:1});rig.update(.016,p.x,p.z,0,()=>0);
+        crowd.add(rig,7+i*2);snapshots.push({count,x:p.x,z:p.z,pelvis:rig.pelvisY,finite:Array.from(rig.pose).every(Number.isFinite)});
+      }
+      crowd.end();
+    }
+    const p=camera.position.clone().addScaledVector(forward,7);
+    const cube=new THREE.Mesh(new THREE.BoxGeometry(.4,1.75,.4),new THREE.MeshBasicMaterial({color:0x00ff00,wireframe:true}));
+    cube.position.set(p.x,.875,p.z);scene.add(cube);
+    return {snapshots,closest:game.actors.actors.filter(a=>Math.hypot(a.x-game.config.spawn.x,a.z-game.config.spawn.z)<30).map(a=>({id:a.id,x:a.x,z:a.z,pelvis:a.rig?.pelvisY,finite:a.rig&&Array.from(a.rig.pose).every(Number.isFinite)}))};
+  })));
+  await page.waitForTimeout(2500);
+  await capture('personas');
+  await browser.close();server.close();process.exit(0);
+
 
   await page.evaluate(() => { window.__outbreakSmoke.outbreak.mission.streetTime = 5; });
   await phase('phone');
