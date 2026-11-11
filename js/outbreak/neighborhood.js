@@ -1,6 +1,15 @@
 import { distance } from './mission.js';
 
-export function roadsidePoint(network, seed, nav) {
+export function parkedCollider(point) {
+  const cs = Math.cos(point.heading), sn = Math.sin(point.heading);
+  const halfX = Math.abs(cs) * 1.17 + Math.abs(sn) * 3.2;
+  const halfZ = Math.abs(sn) * 1.17 + Math.abs(cs) * 3.2;
+  return { minX: point.x - halfX, maxX: point.x + halfX, minZ: point.z - halfZ, maxZ: point.z + halfZ,
+    minY: 0, maxY: 2.8, navigationObb: true,
+    obb: { cx: point.x, cz: point.z, hx: 1.17, hz: 3.2, cs, sn } };
+}
+
+export function roadsidePoint(network, seed, nav, canUse = () => true) {
   const sites = [];
   for (const edge of network?.edges || []) {
     if (edge.len < 26) continue;
@@ -10,7 +19,7 @@ export function roadsidePoint(network, seed, nav) {
       heading: Math.atan2(edge.dx, edge.dz) };
     if (nav.clear(point, { x: point.x + edge.dx * 4, z: point.z + edge.dz * 4 })) sites.push(point);
   }
-  return sites.sort((a, b) => distance(a, seed) - distance(b, seed))[0] || null;
+  return sites.sort((a, b) => distance(a, seed) - distance(b, seed)).find(canUse) || null;
 }
 
 // Stable residents and reusable sidewalk positions. Scene events use these same actors.

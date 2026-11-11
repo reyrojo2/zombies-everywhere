@@ -19,7 +19,14 @@ export class NavigationGrid {
       const x1 = Math.min(this.width - 1, Math.floor((c.maxX + padding - bounds.minX) / cell));
       const z0 = Math.max(0, Math.floor((c.minZ - padding - bounds.minZ) / cell));
       const z1 = Math.min(this.height - 1, Math.floor((c.maxZ + padding - bounds.minZ) / cell));
-      for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) this.blocked[z * this.width + x] = 1;
+      for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
+        const index = z * this.width + x;
+        if (c.navigationObb) {
+          const point = this.point(index), o = c.obb, dx = point.x - o.cx, dz = point.z - o.cz;
+          if (Math.abs(dx * o.cs - dz * o.sn) > o.hx + padding || Math.abs(dx * o.sn + dz * o.cs) > o.hz + padding) continue;
+        }
+        this.blocked[index] = 1;
+      }
     }
   }
   index(p) {

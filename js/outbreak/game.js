@@ -2,7 +2,7 @@ import * as THREE from 'three/webgpu';
 import { Mission, MANHATTAN, distance } from './mission.js';
 import { blockAt } from '../city-config.js';
 import { NavigationGrid, shelterSite, pedestrianSite, sitePoint } from './navigation.js';
-import { Neighborhood, roadsidePoint } from './neighborhood.js';
+import { Neighborhood, roadsidePoint, parkedCollider } from './neighborhood.js';
 import { OutbreakActors } from './actors.js';
 import { OutbreakView } from './view.js';
 import { OutbreakSound } from './sound.js';
@@ -61,14 +61,29 @@ export class OutbreakGame {
     this.routeNav = new NavigationGrid(MANHATTAN.bounds, colliders);
     this.escapeRoutes=[{nav:this.civilianNav,goal:this.config.shelter}];
     for(const {x,z} of MANHATTAN.exits) {
-      const nav=new NavigationGrid(MANHATTAN.bounds,colliders),goal=nav.nearest({x,z},30);
+      const nav=new NavigationGrid(MANHATTAN.bounds,colliders),goal=nav.nearest({x,z},30,reachable);
       if(goal){nav.flood(goal);this.escapeRoutes.push({nav,goal});}
     }
     this.config.relay.heading = siteHeading(this.routeNav, this.config.relay, this.config.radio, .8, 1);
     this.routeNav.flood(this.config.pharmacy.approach);
     this.neighborhood = new Neighborhood(this.config, this.civilianNav, pedestrianBlock, this.routeNav.trace(this.config.spawn));
-    this.config.schoolVan = roadsidePoint(roadNetwork, this.neighborhood.stop, this.nav);
-    this.config.deliveryVan = roadsidePoint(roadNetwork, this.neighborhood.delivery, this.nav);
+    const goals = [this.config.spawn, this.config.pharmacy.approach, this.config.radio, this.config.relay,
+      ...this.config.shelters.map(site => site.approach), ...this.escapeRoutes.map(route => route.goal)];
+    const parked = [];
+    const canPark = point => {
+      if (goals.some(goal => distance(goal, point) < 10) || parked.some(p => distance(p, point) < 12)) return false;
+      const before = this.nav.blocked.slice();
+      this.nav.addObstacles([parkedCollider(point)]);
+      this.nav.flood(this.config.spawn);
+      const fits = goals.every(goal => this.nav.cost[this.nav.index(goal)] >= 0);
+      this.nav.blocked.set(before);
+      return fits;
+    };
+    this.config.schoolVan = roadsidePoint(roadNetwork, this.neighborhood.stop, this.nav, canPark);
+    if (this.config.schoolVan) {
+      parked.push(this.config.schoolVan); this.nav.addObstacles([parkedCollider(this.config.schoolVan)]);
+    }
+    this.config.deliveryVan = roadsidePoint(roadNetwork, this.neighborhood.delivery, this.nav, canPark);
     this.config.firstCase = this.neighborhood.caseSite;
     for (const shelter of this.config.shelters) this.routeNav.avoidShelter(shelter);
     // Put the first collision on a visible approach to the shuttered pharmacy.

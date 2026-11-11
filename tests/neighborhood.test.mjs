@@ -90,3 +90,11 @@ test('a pharmacy entrance fits on the sidewalk, faces its approach and backs ont
   assert.ok(nav.clear(site, site.approach));
   assert.ok([-1.5, 0, 1.5].some(x => !nav.open(nav.index(sitePoint(site, x, -3.85)))));
 });
+
+test('parked vans block their rotated body while leaving empty bounding-box corners walkable', async () => {
+  const { parkedCollider } = await import('../js/outbreak/neighborhood.js');
+  const nav = new NavigationGrid({ minX: 0, maxX: 60, minZ: 0, maxZ: 60 }, []);
+  nav.addObstacles([parkedCollider({ x: 30, z: 30, heading: Math.PI / 4 })]);
+  assert.equal(nav.open(nav.index({ x: 30, z: 30 })), false);
+  assert.equal(nav.open(nav.index({ x: 33, z: 27 })), true);
+});

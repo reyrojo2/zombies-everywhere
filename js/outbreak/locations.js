@@ -2,6 +2,7 @@ import * as THREE from 'three/webgpu';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { distance } from './mission.js';
 import { sitePoint } from './navigation.js';
+import { parkedCollider } from './neighborhood.js';
 
 const materials = new Map();
 
@@ -101,9 +102,7 @@ export function createNeighborhoodScenery(config, neighborhood, ground) {
     }
     const panel = new THREE.Group(); place(panel, point, ground(point)); group.add(panel);
     sign(panel, 1.8, .23, [0, 2.63, 1.55], school ? '#c58c20' : '#465e63', school ? 'SCHOOL BUS' : 'DELIVERY', '#e9dcbc');
-    const halfX = Math.abs(Math.cos(point.heading)) * 1.17 + Math.abs(Math.sin(point.heading)) * 3.2;
-    const halfZ = Math.abs(Math.sin(point.heading)) * 1.17 + Math.abs(Math.cos(point.heading)) * 3.2;
-    colliders.push({ minX: point.x - halfX, maxX: point.x + halfX, minZ: point.z - halfZ, maxZ: point.z + halfZ, minY: 0, maxY: 2.8 });
+    colliders.push(parkedCollider(point));
     if (school) for (const side of [-1, 1]) {
       const lamp = new THREE.Mesh(new THREE.BoxGeometry(.21, .14, .09), solid(0xe9a331));
       const p = sitePoint(point, side * .73, 1.6);

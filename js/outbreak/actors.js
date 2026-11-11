@@ -46,11 +46,8 @@ export class OutbreakActors {
     this.population.activate();
   }
   visibleFrom(player, point) {
-    if (!this.nav.clear(player, point)) return false;
-    const d = distance(player, point);
-    if (d < 35) return true;
-    const heading = this.controller.getActiveEntity().heading;
-    return (Math.sin(heading) * (point.x - player.x) + Math.cos(heading) * (point.z - player.z)) / d > -.45;
+    // Treat every unobstructed street as visible, even when the camera is looking behind the avatar.
+    return this.nav.clear(player, point);
   }
   updateWitnesses(streetTime, player, mission) {
     const { patient, helper } = this.witnesses;
@@ -77,7 +74,7 @@ export class OutbreakActors {
   }
   localTarget(a, target) {
     if (this.nav.clear(a, target)) { a.path = null; return target; }
-    if ((!a.pathGoal || distance(a.pathGoal, target) > 3) && this.time >= (a.repathAt || 0) && this.pathBudget > 0) {
+    if ((!a.path?.length || !a.pathGoal || distance(a.pathGoal, target) > 3) && this.time >= (a.repathAt || 0) && this.pathBudget > 0) {
       this.pathBudget--;
       a.path = this.nav.path(a, target, 2400); a.pathGoal = { ...target }; a.repathAt = this.time + 1.5;
     }

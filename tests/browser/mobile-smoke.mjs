@@ -147,7 +147,7 @@ try {
       props: !!window.__outbreakSmoke.scene.getObjectByName('NeighborhoodStreetProps'),
       schoolVan: !!game.config.schoolVan,
       deliveryVan: !!game.config.deliveryVan,
-      pharmacy: [-3, 0, 3].every(x => [-1.85, .3, 3.3].every(z => {
+      pharmacy: blockAt(pharmacy.approach.x, pharmacy.approach.z) === block && [-3, 0, 3].every(x => [-1.85, .3].every(z => {
         const p = sitePoint(pharmacy, x, z);
         return blockAt(p.x, p.z) === block;
       })),
