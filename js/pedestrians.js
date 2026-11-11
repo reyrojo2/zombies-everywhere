@@ -938,6 +938,8 @@ class PersonCrowd {
       attr.clearUpdateRanges();
       attr.addUpdateRange(0, l.count * STRIDE * 4);
       attr.needsUpdate = true;
+      // WebGL samples a texture copy of the poses. CPU storage updates must refresh it too.
+      if (attr.pbo) attr.pbo.needsUpdate = true;
     }
   }
 }
